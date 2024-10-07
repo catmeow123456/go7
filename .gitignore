@@ -1,0 +1,3 @@
+*.pkl
+log.txt
+__pycache__

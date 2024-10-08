@@ -42,7 +42,7 @@ def weights_init(m):
 
 def train_network(dataset, epoch_num=1000, pi_only=False):
     if not os.path.exists("data/cnn.pt"):
-        nnet = NNet(0, 128, 256).to(device)
+        nnet = NNet(0.5, 128, 256).to(device)
         nnet.apply(weights_init)
         torch.save(nnet.state_dict(), "data/cnn.pt")
     else:
@@ -58,7 +58,7 @@ def train_network(dataset, epoch_num=1000, pi_only=False):
     data_output2 = data_output2.view(-1, 1)
 
     # train nnet with data
-    optimizer = optim.Adam(nnet.parameters(), lr=0.001, weight_decay=1e-4)
+    optimizer = optim.Adam(nnet.parameters(), lr=0.0005, weight_decay=1e-4)
     for epoch in range(epoch_num):
         optimizer.zero_grad()
         output1, output2 = nnet(data_input)
@@ -81,21 +81,27 @@ def train_network(dataset, epoch_num=1000, pi_only=False):
     torch.save(nnet.state_dict(), "data/cnn.pt")
 
 
-nnet = NNet(0, 128, 256)
-ver = 1
+ver = 3
+id = 2
 while True:
     flag = False
-    while not os.path.exists(f"data{ver}-0.pkl"):
+    while not os.path.exists(f"data{ver}-{id}.pkl"):
         if not flag:
             flag = True
-            print(f"Waiting for data{ver}-0.pkl")
+            print(f"Waiting for data{ver}-{id}.pkl")
         time.sleep(10)
-    print(f"Training data{ver}-0.pkl")
-    lst = [ver]
-    for i in range(max(0, ver-2), ver):
-        lst.append(i)
-    for i in lst:
-        with open(f"data{i}-0.pkl", "rb") as f:
+    lst = [(ver, id)]
+    for i in range(max(1, ver-1), ver + 1):
+        for j in range(3):
+            if i == ver and j > id:
+                continue
+            lst.append((i, j))
+    for i, j in lst:
+        print(f"Training data{i}-{j}.pkl")
+        with open(f"data{i}-{j}.pkl", "rb") as f:
             data = pickle.load(f)
         train_network(data[0:60000], epoch_num=10)
-    ver += 1
+    id += 1
+    if id == 3:
+        id = 0
+        ver += 1

@@ -6,8 +6,8 @@ from typing import List
 import itertools
 DIR = ((-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1))
 N = 7
-BLACK = 1
-WHITE = -1
+BLACK = np.int8(1)
+WHITE = np.int8(-1)
 ACTION_SIZE = 50
 PASS = 49
 HISTORY_SIZE = 3
@@ -17,20 +17,27 @@ class Board:
     n: int = N
     board: np.ndarray
     referee: Referee
-    color: int = BLACK
+    color: np.int8 = BLACK
 
     def __init__(self) -> None:
-        self.board = np.zeros((self.n, self.n), dtype=np.int32)
+        self.board = np.zeros((self.n, self.n), dtype=np.int8)
         self.referee = Referee(self.n)
 
-    def from_state(buffer) -> 'Board':  # 仅在训练时用到
-        previous_pass = False
+    def from_state(buffer) -> 'Board':
         obj = object.__new__(Board)
         obj.n = N
-        obj.board = np.frombuffer(buffer, dtype=np.int32).reshape((obj.n, obj.n))
+        arr = np.frombuffer(buffer, dtype=np.int8).reshape((-1, obj.n, obj.n))
+        obj.board = arr[0]
         obj.color = BLACK
         obj.referee = Referee(obj.n)
-        obj.referee.previous_pass = previous_pass
+        for i in range(HISTORY_SIZE):
+            if arr[-1-i].any():
+                obj.referee.previous_states.append(arr[-1-i].tolist())
+        try:
+            obj.referee.previous_pass = arr[0].any() and arr[0].tolist() == arr[1].tolist()
+        except:
+            print(arr, arr.__class__)
+            raise Exception
         return obj
 
     def move2int(self, x: int, y: int) -> int:
@@ -50,7 +57,13 @@ class Board:
         return self.board[x][y]
 
     def hashed_state(self):
-        return (self.board * self.color).astype(np.int32).tobytes()
+        input = np.zeros((HISTORY_SIZE, self.n, self.n), dtype=np.int8)
+        for i in range(min(HISTORY_SIZE, len(self.referee.previous_states))):
+            board = np.array(self.referee.previous_states[-1-i], dtype=np.int8)
+            input[i] = board * self.color
+        input = input.flatten()
+        arr = bytes(input)
+        return arr
 
     def place(self, x: int, y: int) -> bool:  # 如果第二次 PASS，返回 True
         if x == -1 and y == -1:
@@ -72,7 +85,7 @@ class Board:
                     pickle.dump(self, f)
                 raise Exception
         assert winner == 0
-        self.board = np.array(newboard, dtype=np.int32)
+        self.board = np.array(newboard, dtype=np.int8)
         self.color = -self.color
         return False
 
@@ -89,11 +102,11 @@ class Board:
         s = ""
         for i in range(self.n):
             for j in range(self.n):
-                s += "O_X"[self.board[i][j] + 1]
+                s += "O.X"[self.board[i][j] + 1]
             s += "\n"
         return s
 
-    def bundled_input(self, valids: np.ndarray) -> np.ndarray:
+    def bundled_input(self, valids: np.ndarray = None) -> np.ndarray:
         input = [[0] * (self.n * self.n) for _ in range(HISTORY_SIZE * 2 + 1)]
         for i in range(min(HISTORY_SIZE, len(self.referee.previous_states))):
             board = list(itertools.chain(*self.referee.previous_states[-1-i]))
@@ -101,6 +114,8 @@ class Board:
             arr2 = list(map(lambda x: 1 if x == -self.color else 0, board))
             input[i*2+1] = arr1
             input[i*2+2] = arr2
+        if valids is None:
+            valids = self.legal_moves_input()
         arr3 = valids.tolist()[:-1]
         input[0] = arr3
         return np.array(input, dtype=np.float32)
@@ -127,8 +142,8 @@ def evaluate(board: Board) -> tuple[int, int]:
     score = {1: 0, -1: 0}
     n = board.n
     visit = np.zeros((n, n), dtype=np.bool_)
-    szX = np.zeros((n, n), dtype=np.int32)
-    szO = np.zeros((n, n), dtype=np.int32)
+    szX = np.zeros((n, n), dtype=np.int8)
+    szO = np.zeros((n, n), dtype=np.int8)
     queue = []
 
     def dfs(x, y, ac) -> int:
@@ -163,7 +178,7 @@ def evaluate(board: Board) -> tuple[int, int]:
 
     sz = {1: szX, -1: szO}
 
-    def calc_score(c: np.int32) -> int:
+    def calc_score(c: np.int8) -> int:
         if c < 6:
             return 1
         return int((6 + (c - 6) / 3) / c)

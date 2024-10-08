@@ -4,7 +4,7 @@ import random
 import torch
 import numpy as np
 from model import NNet, MCTS
-from game import Board, ACTION_SIZE, rotate, rotate_bundle
+from game import Board, ACTION_SIZE, rotate, rotate_bundle, HISTORY_SIZE
 import pickle
 
 def count_data(mcts: MCTS):
@@ -15,14 +15,11 @@ def count_data(mcts: MCTS):
     return count
 
 def self_play(mcts: MCTS, timeout=10, id=0):
-    arr = [0 for _ in range(49)]
+    board = Board()
     for _ in range(4):
         if random.random() < 0.5:
-            arr[random.randint(0, 48)] = 1
-            arr[random.randint(0, 48)] = -1
-    arr = np.array(arr, dtype=np.int32).tobytes()
-    board = Board.from_state(arr)
-    for _ in range(38):
+            board.place(*board.randplace())
+    for _ in range(40):
         action = mcts.best_move(board, timeout)
         c = board.color
         v = mcts.query_v(board, action)
@@ -30,7 +27,9 @@ def self_play(mcts: MCTS, timeout=10, id=0):
         if hasattr(board, "winner"):
             break
         print(f'id {id} step = ', _)
-        print(str(board), f"Color: {'O_X'[c+1]}, Action: {board.int2move(action)}, Value: {v}")
+        print(str(board), f"Color: {'O.X'[c+1]}, Action: {board.int2move(action)}, Value: {v}")
+        if v < -0.9999 or v > 0.9999:
+            break
             
 
 def get_data(mcts: MCTS):
@@ -62,28 +61,23 @@ def get_data(mcts: MCTS):
     return data
 
 
-def self_play_and_get_data(ver: int, id: int):
-    if not os.path.exists("data/cnn.pt"):
-        nnet = None
-    else:
-        nnet = NNet(0, 128, 256)
-        saved_state = torch.load("data/cnn.pt", map_location='cpu', weights_only=True)
-        nnet.load_state_dict(saved_state)
-    mcts = MCTS(nnet)
-    self_play(mcts, timeout=30, id=id)
-    data = get_data(mcts)
-    with open(f"data{ver}-{id}.pkl", "wb") as f:
-        pickle.dump(data, f)
+def self_play_and_get_data(ver: int):
+    mcts = MCTS(None)
+    for id in range(3):
+        if os.path.exists("data/cnn.pt"):
+            nnet = NNet(0, 128, 256)
+            saved_state = torch.load("data/cnn.pt", map_location='cpu', weights_only=True)
+            nnet.load_state_dict(saved_state)
+            mcts.nnet = nnet
+        self_play(mcts, timeout=20, id=id)
+        data = get_data(mcts)
+        with open(f"data{ver}-{id}.pkl", "wb") as f:
+            pickle.dump(data, f)
 
 # main
 if __name__ == "__main__":
     random.seed(time.time())
-    # parse arguments
-    import argparse
-    parser = argparse.ArgumentParser()
-    parser.add_argument("ver", type=int)
-    parser.add_argument("id", type=int)
-    args = parser.parse_args()
-    self_play_and_get_data(args.ver, args.id)
-
-# python selfplay.py 1 0
+    ver = 3
+    while True:
+        self_play_and_get_data(ver)
+        ver += 1

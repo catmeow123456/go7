@@ -82,16 +82,20 @@ def train_network(dataset, epoch_num=1000, pi_only=False):
 
 
 nnet = NNet(0, 128, 256)
-ver = 5
+ver = 1
 while True:
     flag = False
     while not os.path.exists(f"data{ver}-0.pkl"):
         if not flag:
             flag = True
             print(f"Waiting for data{ver}-0.pkl")
-        time.sleep(1)
+        time.sleep(10)
     print(f"Training data{ver}-0.pkl")
-    with open(f"data{ver}-0.pkl", "rb") as f:
-        data = pickle.load(f)
-    train_network(data[0:60000], epoch_num=10)
+    lst = [ver]
+    for i in range(max(0, ver-2), ver):
+        lst.append(i)
+    for i in lst:
+        with open(f"data{i}-0.pkl", "rb") as f:
+            data = pickle.load(f)
+        train_network(data[0:60000], epoch_num=10)
     ver += 1

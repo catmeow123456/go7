@@ -146,7 +146,7 @@ class MCTS:
             # v1, v2 = evaluate(game)
             # v = 1 if v1 > v2 else (-1 if v1 < v2 else 0)
             # v = v * game.color
-            return -v
+            return -float(v)
 
         # 选择动作
         ps = self.Ps[s]

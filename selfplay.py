@@ -77,7 +77,7 @@ def self_play_and_get_data(ver: int):
 # main
 if __name__ == "__main__":
     random.seed(time.time())
-    ver = 3
+    ver = 6
     while True:
         self_play_and_get_data(ver)
         ver += 1

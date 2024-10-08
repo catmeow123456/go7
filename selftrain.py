@@ -81,8 +81,8 @@ def train_network(dataset, epoch_num=1000, pi_only=False):
     torch.save(nnet.state_dict(), "data/cnn.pt")
 
 
-ver = 3
-id = 2
+ver = 6
+id = 0
 while True:
     flag = False
     while not os.path.exists(f"data{ver}-{id}.pkl"):
@@ -97,6 +97,8 @@ while True:
                 continue
             lst.append((i, j))
     for i, j in lst:
+        if not os.path.exists(f"data{i}-{j}.pkl"):
+            continue
         print(f"Training data{i}-{j}.pkl")
         with open(f"data{i}-{j}.pkl", "rb") as f:
             data = pickle.load(f)

@@ -6,8 +6,6 @@ TIME_LIMIT = 3.5
 
 
 def get_input():
-    # with open("log_forAI.json", "r") as f:
-    #     inputstr = f.read()
     return json.loads(input())
 
 
@@ -32,13 +30,10 @@ saved_state = torch.load("data/cnn.pt", map_location="cpu")
 nnet = NNet(0, 128, 256)
 nnet.load_state_dict(saved_state)
 mcts: MCTS = MCTS(nnet)
-# torch.save(nnet.state_dict(), 'data/cnn.pt')
-# print(board)
 while True:
     if board.is_game_ended():
         break
     action = mcts.best_move(board, TIME_LIMIT)
-    # action = mcts.simple_move(board)
     x, y = board.int2move(action)
     board.place(x, y)
     print(json.dumps({"response": {"x": x, "y": y}}))

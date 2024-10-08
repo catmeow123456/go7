@@ -22,7 +22,7 @@ def self_play(mcts: MCTS, timeout=10, id=0):
             arr[random.randint(0, 48)] = -1
     arr = np.array(arr, dtype=np.int32).tobytes()
     board = Board.from_state(arr)
-    for _ in range(45):
+    for _ in range(38):
         action = mcts.best_move(board, timeout)
         c = board.color
         v = mcts.query_v(board, action)

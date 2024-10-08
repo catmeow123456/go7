@@ -63,7 +63,7 @@ class Board:
             newboard, winner = self.referee.judge(self.board.tolist(), (x, y))
             try:
                 assert newboard is not None
-            except:
+            except AssertionError:
                 print('debug!')
                 print(self.__str__())
                 print(x, y)
@@ -114,17 +114,19 @@ class Board:
         valids[PASS] = 1
         return valids
 
+
 def rotate(board: np.ndarray, N: int) -> np.ndarray:
     return np.rot90(board.reshape(N, N)).flatten()
+
 
 def rotate_bundle(bundle: np.ndarray, N: int) -> np.ndarray:
     return np.array([rotate(bundle[i], N) for i in range(len(bundle))])
 
 
 def evaluate(board: Board) -> tuple[int, int]:
-    score = {1 : 0, -1 : 0}
+    score = {1: 0, -1: 0}
     n = board.n
-    visit = np.zeros((n, n), dtype=np.bool)
+    visit = np.zeros((n, n), dtype=np.bool_)
     szX = np.zeros((n, n), dtype=np.int32)
     szO = np.zeros((n, n), dtype=np.int32)
     queue = []
@@ -159,7 +161,8 @@ def evaluate(board: Board) -> tuple[int, int]:
                     szO[x][y] = sz
                 queue.clear()
 
-    sz = {1 : szX, -1 : szO}
+    sz = {1: szX, -1: szO}
+
     def calc_score(c: np.int32) -> int:
         if c < 6:
             return 1

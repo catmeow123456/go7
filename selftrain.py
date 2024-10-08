@@ -1,16 +1,13 @@
+import time
+import numpy as np
+import pickle
+import os
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from game import Board, ACTION_SIZE, rotate, rotate_bundle
-from model import NNet, MCTS, device, map_location
-import numpy as np
-import pickle
-import time
-import os
-import pickle
-import subprocess
-from subprocess import PIPE
-from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
+from game import ACTION_SIZE
+from model import NNet, device, map_location
+
 
 def save_mcts(mcts, filename):
     with open(filename, "wb") as f:
@@ -21,6 +18,8 @@ def save_mcts(mcts, filename):
                 "Qsa": mcts.Qsa,
                 "Nsa": mcts.Nsa,
             }, f)
+
+
 def load_mcts(mcts, filename):
     with open(filename, "rb") as f:
         data = pickle.load(f)
@@ -29,8 +28,9 @@ def load_mcts(mcts, filename):
         mcts.Qsa = data["Qsa"]
         mcts.Nsa = data["Nsa"]
 
+
 def weights_init(m):
-    classname=m.__class__.__name__
+    classname = m.__class__.__name__
     if classname.find('Conv') != -1:
         torch.nn.init.xavier_normal_(m.weight.data)
     elif classname.find('Linear') != -1:
@@ -38,6 +38,7 @@ def weights_init(m):
     elif classname.find('BatchNorm') != -1:
         m.weight.data.normal_(1.0, 0.02)
         m.bias.data.fill_(0)
+
 
 def train_network(dataset, epoch_num=1000, pi_only=False):
     if not os.path.exists("data/cnn.pt"):
@@ -80,13 +81,16 @@ def train_network(dataset, epoch_num=1000, pi_only=False):
     torch.save(nnet.state_dict(), "data/cnn.pt")
 
 
-from selfplay import self_play_and_get_data
-
 nnet = NNet(0, 128, 256)
-ver = 0
+ver = 5
 while True:
-    print('-'*50)
-    self_play_and_get_data(ver, 0)
+    flag = False
+    while not os.path.exists(f"data{ver}-0.pkl"):
+        if not flag:
+            flag = True
+            print(f"Waiting for data{ver}-0.pkl")
+        time.sleep(1)
+    print(f"Training data{ver}-0.pkl")
     with open(f"data{ver}-0.pkl", "rb") as f:
         data = pickle.load(f)
     train_network(data[0:60000], epoch_num=10)

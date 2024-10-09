@@ -116,12 +116,6 @@ class MCTS:
         if hasattr(game, 'winner'):
             v = float(game.winner * game.color)
             return -v
-        # if depth >= 45:
-        #     res = evaluate(game)
-        #     s = 1 if res[1] > res[-1] else (-1 if res[1] < res[-1] else 0)
-        #     v = s * game.color
-        #     return -v
-
         s = game.hashed_state()
         valids = game.legal_moves_input()
 
@@ -148,16 +142,13 @@ class MCTS:
                 ps[game.move2int(4, 2)] *= 1000
             self.Ps[s] = ps
             self.Ns[s] = 0
-
-            # if random.random() < 0.2:
-            #     v1, v2 = evaluate(game)
-            #     v = 1 if v1 > v2 else (-1 if v1 < v2 else 0)
-            #     v = v * game.color
-            #     return -float(v)
-            return -float(v)
+            if random.random() < 0.05:
+                return -float(v)
 
         # 选择动作
         ps = self.Ps[s]
+        for i in range(ACTION_SIZE):
+            ps[i] += (random.random()-0.5) * 5e-3   # dirichlet noise
         ns = self.Ns[s]
         cpuct = self.cpuct
 

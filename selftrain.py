@@ -81,7 +81,7 @@ def train_network(dataset, epoch_num=1000, pi_only=False):
     torch.save(nnet.state_dict(), "data/cnn.pt")
 
 
-ver = 16
+ver = 19
 id = 1
 while True:
     flag = False

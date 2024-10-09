@@ -19,7 +19,8 @@ def self_play(mcts: MCTS, timeout=10, id=0):
     for _ in range(4):
         if random.random() < 0.5:
             board.place(*board.randplace())
-    for _ in range(38):
+    print(board)
+    for _ in range(45):
         action = mcts.best_move(board, timeout)
         c = board.color
         v = mcts.query_v(board, action)
@@ -37,7 +38,7 @@ def get_data(mcts: MCTS):
     weight_list = [mcts.Ns[key] for key in key_list]
     sum = np.sum(weight_list)
     weight_list = [w/sum for w in weight_list]
-    key_choose = np.random.choice(range(len(key_list)), 20000, replace=True, p=weight_list)
+    key_choose = np.random.choice(range(len(key_list)), 15000, replace=False, p=weight_list)
     data = []
     
     for id in key_choose:
@@ -68,7 +69,7 @@ def self_play_and_get_data(ver: int, id: int):
         saved_state = torch.load("data/cnn.pt", map_location=map_location, weights_only=True)
         nnet.load_state_dict(saved_state)
         mcts.nnet = nnet
-    self_play(mcts, timeout=50, id=id)
+    self_play(mcts, timeout=30, id=id)
     data = get_data(mcts)
     with open(f"data{ver}-{id}.pkl", "wb") as f:
         pickle.dump(data, f)
@@ -76,7 +77,7 @@ def self_play_and_get_data(ver: int, id: int):
 # main
 if __name__ == "__main__":
     random.seed(time.time())
-    ver = 16
+    ver = 21
     id = 1
     while True:
         print(f"Self play and get data {ver} of id {id}")

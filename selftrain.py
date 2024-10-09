@@ -6,7 +6,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from game import ACTION_SIZE
-from model import NNet, device, map_location
+from nnet import NNet, device, map_location
 
 
 def save_mcts(mcts, filename):

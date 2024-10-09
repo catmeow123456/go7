@@ -1,0 +1,7 @@
+{
+    "models": [
+        "data/cnn.pt"
+    ],
+    "best": "data/cnn.pt",
+    "dataset": []
+}

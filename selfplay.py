@@ -2,88 +2,157 @@ import os
 import time
 import random
 import torch
+import torch.nn as nn
+import torch.optim as optim
+import json
+from tqdm import tqdm
 import numpy as np
-from model import NNet, MCTS, device, map_location
+from collections import deque
+from nnet import device, map_location, NNet
+from mcts import MCTS
 from game import Board, ACTION_SIZE, rotate, rotate_bundle, HISTORY_SIZE
 import pickle
+from utils import dotdict
 
-def count_data(mcts: MCTS):
-    count=0
-    for key in mcts.Ns:
-        if mcts.Ns[key] > 50:
-            count+=1
-    return count
-
-def self_play(mcts: MCTS, timeout=10, id=0):
-    board = Board()
-    for _ in range(4):
-        if random.random() < 0.5:
-            board.place(*board.randplace())
-    print(board)
-    for _ in range(45):
-        action = mcts.best_move(board, timeout)
-        c = board.color
-        v = mcts.query_v(board, action)
-        board.place(*board.int2move(action))
-        if hasattr(board, "winner"):
-            break
-        print(f'id {id} step = ', _)
-        print(str(board), f"Color: {'O.X'[c+1]}, Action: {board.int2move(action)}, Value: {v}")
-        if v < -0.9 or v > 0.9:
-            break
-            
-
-def get_data(mcts: MCTS):
-    key_list = list(mcts.Ns.keys())
-    weight_list = [mcts.Ns[key] for key in key_list]
-    sum = np.sum(weight_list)
-    weight_list = [w/sum for w in weight_list]
-    key_choose = np.random.choice(range(len(key_list)), 15000, replace=False, p=weight_list)
-    data = []
-    
-    for id in key_choose:
-        key = key_list[id]
-        board = Board.from_state(key)
-        input = board.bundled_input(board.legal_moves_input())
-        ps = np.zeros(ACTION_SIZE)
-        action = mcts.best_move(board, timeout=0)
-        ps[action] = 1.0
-        vs = mcts.Qsa[key, action]
-        for i in range(4):
-            data.append((
-                input,
-                ps,
-                float(vs)
-                )
-            )
-            input = rotate_bundle(input, board.n)
-            last = ps[-1]
-            ps = np.array(rotate(ps[:-1], board.n).tolist() + [last])
-    return data
+"""
+所有超参数都放这里
+"""
+defaultargs = dotdict({
+    'numIters': 1000,  # 策略迭代 numIters 次数
+    'numEps': 100,  # 进行完整的 numEps 轮游戏
+    'numMCTSSims': 50,  # 在每一轮游戏的每一个节点，运行 numMCTSSims 次 MCTS 模拟后再采样行动和获取样本
+    'maxlenOfQueue': 20000,  # maxlenOfQueue 个样本为一组
+    'numItersForTrainExamplesHistory': 5,  # 保留最近 numItersForTrainExamplesHistory 组样本，将他们混合后 shuffle 出训练集
+    'arenaCompare': 40,  # 与历史模型对弈 arenaCompare 次，用于评估新模型的优劣
+    'updateThreshold': 0.55,  # 新模型胜率超过 updateThreshold 时，接受新模型
+})
 
 
-def self_play_and_get_data(ver: int, id: int):
-    mcts = MCTS(None)
-    if os.path.exists("data/cnn.pt"):
-        nnet = NNet(0.5, 128, 256).to(device)
-        saved_state = torch.load("data/cnn.pt", map_location=map_location, weights_only=True)
-        nnet.load_state_dict(saved_state)
-        mcts.nnet = nnet
-    self_play(mcts, timeout=30, id=id)
-    data = get_data(mcts)
-    with open(f"data{ver}-{id}.pkl", "wb") as f:
-        pickle.dump(data, f)
+def weights_init(m):
+    classname = m.__class__.__name__
+    if classname.find('Conv') != -1:
+        torch.nn.init.xavier_normal_(m.weight.data)
+    elif classname.find('Linear') != -1:
+        torch.nn.init.xavier_normal_(m.weight.data)
+    elif classname.find('BatchNorm') != -1:
+        m.weight.data.normal_(1.0, 0.02)
+        m.bias.data.fill_(0)
 
-# main
-if __name__ == "__main__":
-    random.seed(time.time())
-    ver = 21
-    id = 1
-    while True:
-        print(f"Self play and get data {ver} of id {id}")
-        self_play_and_get_data(ver, id)
-        id += 1
-        if id == 3:
-            id = 0
-            ver += 1
-        time.sleep(60)
+def load_model(filename: str) -> NNet:
+    nnet = NNet(0.5, 128, 256).to(device)
+    saved_state = torch.load(filename, map_location=map_location, weights_only=True)
+    nnet.load_state_dict(saved_state)
+    return nnet
+
+
+class Coach:
+    path: str
+    args: dotdict
+    info: dotdict
+
+    def __init__(self, infopath: str, args: dotdict = None):
+        self.path = infopath
+        self.args = args if args is not None else defaultargs
+        with open(infopath, "r") as f:
+            data = json.load(f)
+            self.info = dotdict(data)
+
+
+    def train(self, nnet: NNet, dataset: list) -> NNet:
+        if nnet is None:
+            nnet = NNet(0.5, 128, 256).to(device)
+            nnet.apply(weights_init)
+        
+        data_input = torch.tensor(np.array([d[0] for d in dataset]), dtype=torch.float32).to(device)
+        data_output1, data_output2 = \
+            torch.tensor(np.array([d[1] for d in dataset]), dtype=torch.float32).to(device), \
+            torch.tensor(np.array([d[2] for d in dataset]), dtype=torch.float32).to(device)
+        data_output1 = data_output1.view(-1, ACTION_SIZE)
+        data_output2 = data_output2.view(-1, 1)
+
+        # train nnet with data
+        optimizer = optim.Adam(nnet.parameters(), lr=0.0005, weight_decay=1e-4)
+        for epoch in range(10):
+            optimizer.zero_grad()
+            output1, output2 = nnet(data_input)
+            # 计算交叉熵
+            loss1 = torch.mean(-data_output1 * output1)
+            loss2 = nn.MSELoss()(output2, data_output2)
+            # 分别训练 loss1 和 loss2
+            loss = loss1 + loss2
+            loss.backward()
+            optimizer.step()
+            print(f'Epoch {epoch}, Loss1: {loss1.item()}, Loss2: {loss2.item()}')
+
+        return nnet
+
+
+    def selfplayEpsisode(self, mcts: MCTS):
+        board = Board()
+        # for _ in range(4):
+        #     if random.random() < 0.5:
+        #         board.place(*board.randplace())
+        data = []
+        # print(board)
+        while not board.haswinner:
+            prob = mcts.getActionProb(board)
+            action = np.random.choice(range(ACTION_SIZE), p=prob)
+            c = board.color
+
+            input = board.bundled_input()
+            for _ in range(4):
+                data.append((input, c, prob))
+                input = rotate_bundle(input, board.n)
+
+            board.place(*board.int2move(action))
+            # v = mcts.query_v(board, action)
+            # print(str(board), f"Color: {'O.X'[c+1]}, Action: {board.int2move(action)}, Value: {v}")
+        data = [(d[0], d[2], 1 if d[1] == board.winner else -1) for d in data]
+        return data
+
+
+    def learn(self) -> NNet:
+        mcts = MCTS(None, self.args)
+        if hasattr(self.info, "best"):
+            mcts.nnet = load_model(self.info.best)
+
+        trainExamples = deque([], maxlen=self.args.maxlenOfQueue)
+        for _ in tqdm(range(self.args.numEps)):
+            data = self.selfplayEpsisode(mcts)
+            trainExamples.extend(data)
+            tqdm.write(f"Collecting training data {len(trainExamples)}")
+            if len(trainExamples) >= self.args.maxlenOfQueue:
+                break
+        random.shuffle(trainExamples)
+        id = str(time.localtime())
+        filename = f"data/dataset-{id}.pkl"
+        with open(f"data/dataset-{id}.pkl", "wb") as f:
+            pickle.dump(trainExamples, f)
+        self.info.dataset.append(filename)
+        if len(self.info.dataset) > self.args.numItersForTrainExamplesHistory:
+            self.info.dataset.pop(0)
+
+        trainingData = []
+        for filename in self.info.dataset:
+            with open(filename, "rb") as f:
+                trainingData.extend(pickle.load(f))
+        random.shuffle(trainingData)
+        newnnet = self.train(mcts.nnet, trainingData)
+        filename = f"data/nnet-{id}.pt"
+        torch.save(newnnet.state_dict(), filename)
+        return newnnet, filename
+
+    def run(self):
+        for _ in range(self.args.numIters):
+            newnnet, filename = self.learn()
+            win, lose = self.compete(newnnet, load_model(self.info.best))
+            if win / (win + lose) > self.args.updateThreshold:
+                print(f"Accept new model {filename}")
+                self.info.best = filename
+                self.info.models.append(filename)
+                with open(self.path, "w") as f:
+                    json.dump(self.info, f)
+            else:
+                print(f"Reject new model {filename}")
+
+coach = Coach("data/info.json")

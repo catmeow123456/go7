@@ -1,3 +1,7 @@
+"""
+文心一言帮忙写的围棋界面，稍加修改可以让 AI 和我下棋，让我薄纱 AI
+"""
+
 import tkinter as tk
 from game import Board
 from main import Player

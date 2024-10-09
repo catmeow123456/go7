@@ -47,7 +47,7 @@ def train_network(dataset, epoch_num=1000, pi_only=False):
         torch.save(nnet.state_dict(), "data/cnn.pt")
     else:
         saved_state = torch.load("data/cnn.pt", map_location=map_location, weights_only=False)
-        nnet = NNet(0, 128, 256).to(device)
+        nnet = NNet(0.5, 128, 256).to(device)
         nnet.load_state_dict(saved_state)
 
     data_input = torch.tensor(np.array([d[0] for d in dataset]), dtype=torch.float32).to(device)
@@ -81,8 +81,8 @@ def train_network(dataset, epoch_num=1000, pi_only=False):
     torch.save(nnet.state_dict(), "data/cnn.pt")
 
 
-ver = 6
-id = 0
+ver = 16
+id = 1
 while True:
     flag = False
     while not os.path.exists(f"data{ver}-{id}.pkl"):

@@ -4,6 +4,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import random
 from typing import Dict, Tuple
 from game import Board, ACTION_SIZE, PASS, HISTORY_SIZE, N, evaluate
 map_location = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -60,7 +61,7 @@ class NNet(nn.Module):
         return F.log_softmax(pi, dim=1), torch.tanh(v)
 
     def predict(self, input: np.ndarray):
-        board = torch.from_numpy(input.astype(np.float32))
+        board = torch.from_numpy(input.astype(np.float32)).to(device)
         board = board.view(CHANNELS_IN, N, N)
 
         self.eval()
@@ -90,7 +91,7 @@ class MCTS:
             count = 0
             while time.perf_counter() - start_time < timeout:
                 count += 1
-                self._search(game.copy())
+                self._search(game.copy(), np.count_nonzero(game.board))
             print('count=', count)
 
         s = game.hashed_state()
@@ -111,10 +112,15 @@ class MCTS:
         s = game.hashed_state()
         return self.Qsa.get((s, action), None)
 
-    def _search(self, game: Board) -> int:
+    def _search(self, game: Board, depth: int = 0) -> float:
         if hasattr(game, 'winner'):
-            v = game.winner * game.color
+            v = float(game.winner * game.color)
             return -v
+        # if depth >= 45:
+        #     res = evaluate(game)
+        #     s = 1 if res[1] > res[-1] else (-1 if res[1] < res[-1] else 0)
+        #     v = s * game.color
+        #     return -v
 
         s = game.hashed_state()
         valids = game.legal_moves_input()
@@ -143,9 +149,11 @@ class MCTS:
             self.Ps[s] = ps
             self.Ns[s] = 0
 
-            # v1, v2 = evaluate(game)
-            # v = 1 if v1 > v2 else (-1 if v1 < v2 else 0)
-            # v = v * game.color
+            # if random.random() < 0.2:
+            #     v1, v2 = evaluate(game)
+            #     v = 1 if v1 > v2 else (-1 if v1 < v2 else 0)
+            #     v = v * game.color
+            #     return -float(v)
             return -float(v)
 
         # 选择动作
@@ -174,7 +182,7 @@ class MCTS:
         a = best_act
 
         game.place(*game.int2move(a))
-        v = self._search(game)
+        v = self._search(game, depth + 1)
 
         qsa = self.Qsa.get((s, a), None)
         if qsa is not None:

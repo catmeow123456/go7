@@ -1,5 +1,4 @@
-import os
-import time
+import datetime
 import random
 import torch
 import torch.nn as nn
@@ -10,7 +9,7 @@ import numpy as np
 from collections import deque
 from nnet import device, map_location, NNet
 from mcts import MCTS
-from game import Board, ACTION_SIZE, rotate, rotate_bundle, HISTORY_SIZE
+from game import Board, ACTION_SIZE, rotate_bundle
 import pickle
 from utils import dotdict
 
@@ -38,6 +37,7 @@ def weights_init(m):
         m.weight.data.normal_(1.0, 0.02)
         m.bias.data.fill_(0)
 
+
 def load_model(filename: str) -> NNet:
     nnet = NNet(0.5, 128, 256).to(device)
     saved_state = torch.load(filename, map_location=map_location, weights_only=True)
@@ -57,35 +57,39 @@ class Coach:
             data = json.load(f)
             self.info = dotdict(data)
 
-
     def train(self, nnet: NNet, dataset: list) -> NNet:
         if nnet is None:
             nnet = NNet(0.5, 128, 256).to(device)
             nnet.apply(weights_init)
-        
-        data_input = torch.tensor(np.array([d[0] for d in dataset]), dtype=torch.float32).to(device)
-        data_output1, data_output2 = \
-            torch.tensor(np.array([d[1] for d in dataset]), dtype=torch.float32).to(device), \
-            torch.tensor(np.array([d[2] for d in dataset]), dtype=torch.float32).to(device)
-        data_output1 = data_output1.view(-1, ACTION_SIZE)
-        data_output2 = data_output2.view(-1, 1)
+        batch_size = 64000
+        epoch = len(dataset) // batch_size
+        for i in range(epoch):
+            print(f"Epoch {i}, batch size {batch_size}")
+            data = dataset[i * batch_size: (i + 1) * batch_size]
 
-        # train nnet with data
-        optimizer = optim.Adam(nnet.parameters(), lr=0.0005, weight_decay=1e-4)
-        for epoch in range(10):
-            optimizer.zero_grad()
-            output1, output2 = nnet(data_input)
-            # 计算交叉熵
-            loss1 = torch.mean(-data_output1 * output1)
-            loss2 = nn.MSELoss()(output2, data_output2)
-            # 分别训练 loss1 和 loss2
-            loss = loss1 + loss2
-            loss.backward()
-            optimizer.step()
-            print(f'Epoch {epoch}, Loss1: {loss1.item()}, Loss2: {loss2.item()}')
+            data_input = torch.tensor(np.array([d[0] for d in data]), dtype=torch.float32).to(device)
+            data_output1, data_output2 = \
+                torch.tensor(np.array([d[1] for d in data]), dtype=torch.float32).to(device), \
+                torch.tensor(np.array([d[2] for d in data]), dtype=torch.float32).to(device)
+            data_output1 = data_output1.view(-1, ACTION_SIZE)
+            data_output2 = data_output2.view(-1, 1)
+
+            # train nnet with data
+            optimizer = optim.Adam(nnet.parameters())  # , weight_decay=1e-4)
+            for _ in range(10):
+                output1, output2 = nnet(data_input)
+                # 计算交叉熵
+                loss1 = torch.mean(-data_output1 * output1)
+                loss2 = nn.MSELoss()(output2, data_output2)
+                # 分别训练 loss1 和 loss2
+                loss = loss1 + loss2
+
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+                print(f'Loss1: {loss1.item()}, Loss2: {loss2.item()}')
 
         return nnet
-
 
     def selfplayEpsisode(self, mcts: MCTS):
         board = Board()
@@ -110,7 +114,6 @@ class Coach:
         data = [(d[0], d[2], 1 if d[1] == board.winner else -1) for d in data]
         return data
 
-
     def learn(self) -> NNet:
         mcts = MCTS(None, self.args)
         if hasattr(self.info, "best"):
@@ -124,7 +127,7 @@ class Coach:
             if len(trainExamples) >= self.args.maxlenOfQueue:
                 break
         random.shuffle(trainExamples)
-        id = str(time.localtime())
+        id = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         filename = f"data/dataset-{id}.pkl"
         with open(f"data/dataset-{id}.pkl", "wb") as f:
             pickle.dump(trainExamples, f)
@@ -142,6 +145,28 @@ class Coach:
         torch.save(newnnet.state_dict(), filename)
         return newnnet, filename
 
+    def compete(self, nnet1: NNet, nnet2: NNet) -> tuple:
+        win, lose = 0, 0
+        for _ in range(self.args.arenaCompare):
+            mcts1 = MCTS(nnet1, self.args)
+            mcts2 = MCTS(nnet2, self.args)
+            flag = 1
+            if random.random() < 0.5:
+                role = {1: mcts1, -1: mcts2}
+            else:
+                role = {1: mcts2, -1: mcts1}
+                flag = -1
+            board = Board()
+            while not board.haswinner:
+                prob = role[board.color].getActionProb(board, temp=0)
+                action = np.random.choice(range(ACTION_SIZE), p=prob)
+                board.place(*board.int2move(action))
+            if board.winner == flag:
+                win += 1
+            else:
+                lose += 1
+        return win, lose
+
     def run(self):
         for _ in range(self.args.numIters):
             newnnet, filename = self.learn()
@@ -155,4 +180,6 @@ class Coach:
             else:
                 print(f"Reject new model {filename}")
 
+
 coach = Coach("data/info.json")
+coach.run()

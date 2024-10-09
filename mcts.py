@@ -8,6 +8,7 @@ from utils import dotdict
 
 EPS = 1e-8
 
+
 class MCTS:
     nnet: NNet
     cpuct: float = 1.0
@@ -43,11 +44,9 @@ class MCTS:
         # print(best_action, best_value)
         return best_action
 
-
     def query_v(self, game: Board, action) -> float:
         s = game.hashed_state
         return self.Qsa.get((s, action), None)
-
 
     def getActionProb(self, game: Board, temp=1) -> np.ndarray:
         """
@@ -59,7 +58,6 @@ class MCTS:
         for _ in range(self.args.numMCTSSims):
             self._search(game.copy())
         s = game.hashed_state
-        vs = game.legal_moves_input()
         Ns = np.array([self.Nsa.get((s, a), 0) for a in range(ACTION_SIZE)])
         if temp == 0:
             best_as = np.argwhere(Ns == np.max(Ns)).flatten()
@@ -70,7 +68,6 @@ class MCTS:
         Ns = Ns ** (1 / temp)
         Ns_sum = np.sum(Ns)
         return Ns / Ns_sum
-
 
     def _search(self, game: Board) -> float:
         if hasattr(game, 'winner'):

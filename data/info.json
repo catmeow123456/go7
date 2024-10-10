@@ -1,8 +1,10 @@
 {
     "models": [
-        "data/cnn.pt"
+        "data/cnn.pt",
+        "data/nnet-2024-10-10 11:42:20.pt",
+        "data/nnet-2024-10-10 11:55:23.pt"
     ],
-    "best": "data/cnn.pt",
+    "best": "data/nnet-2024-10-10 11:55:23.pt",
     "dataset": [
     ]
 }

@@ -14,14 +14,18 @@ class MCTS:
     cpuct: float = 1.0
     args: dotdict
 
-    Ps: Dict[bytes, np.ndarray] = {}    # 记忆化策略网络输出的概率分布
-    Ns: Dict[bytes, int] = {}       # 状态 s 被访问的次数
-    Qsa: Dict[Tuple[bytes, int], float] = {}  # stores Q values for s,a (as defined in the paper)
-    Nsa: Dict[Tuple[bytes, int], int] = {}      # (s, a) 被访问的次数
+    Ps: Dict[bytes, np.ndarray]    # 记忆化策略网络输出的概率分布
+    Ns: Dict[bytes, int]       # 状态 s 被访问的次数
+    Qsa: Dict[Tuple[bytes, int], float]  # stores Q values for s,a (as defined in the paper)
+    Nsa: Dict[Tuple[bytes, int], int]      # (s, a) 被访问的次数
 
     def __init__(self, nnet: NNet = None, args: dotdict = None):
         self.nnet = nnet
         self.args = args
+        self.Ps = {}
+        self.Ns = {}
+        self.Qsa = {}
+        self.Nsa = {}
 
     def best_move(self, game: Board, timeout: float) -> int:
         if timeout > 0:

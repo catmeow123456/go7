@@ -19,11 +19,11 @@ from utils import dotdict
 """
 defaultargs = dotdict({
     'numIters': 1000,  # 策略迭代 numIters 次数
-    'numEps': 100,  # 进行完整的 numEps 轮游戏
-    'numMCTSSims': 50,  # 在每一轮游戏的每一个节点，运行 numMCTSSims 次 MCTS 模拟后再采样行动和获取样本
+    'numEps': 200,  # 进行完整的 numEps 轮游戏
+    'numMCTSSims': 200,  # 在每一轮游戏的每一个节点，运行 numMCTSSims 次 MCTS 模拟后再采样行动和获取样本
     'maxlenOfQueue': 20000,  # maxlenOfQueue 个样本为一组
-    'numItersForTrainExamplesHistory': 5,  # 保留最近 numItersForTrainExamplesHistory 组样本，将他们混合后 shuffle 出训练集
-    'arenaCompare': 40,  # 与历史模型对弈 arenaCompare 次，用于评估新模型的优劣
+    'numItersForTrainExamplesHistory': 10,  # 保留最近 numItersForTrainExamplesHistory 组样本，将他们混合后 shuffle 出训练集
+    'arenaCompare': 50,  # 与历史模型对弈 arenaCompare 次，用于评估新模型的优劣
     'updateThreshold': 0.6,  # 新模型胜率超过 updateThreshold 时，接受新模型
 })
 
@@ -76,7 +76,7 @@ class Coach:
             data_output2 = data_output2.view(-1, 1)
 
             # train nnet with data
-            optimizer = optim.Adam(nnet.parameters())  # , weight_decay=1e-4)
+            optimizer = optim.Adam(nnet.parameters(), lr=0.0003)  # , weight_decay=1e-4)
             for _ in range(10):
                 output1, output2 = nnet(data_input)
                 # 计算交叉熵
@@ -92,14 +92,15 @@ class Coach:
 
         return nnet
 
-    def selfplayEpsisode(self, mcts: MCTS):
+    def selfplayEpsisode(self, mcts: MCTS, debug: bool = False):
         board = Board()
         # for _ in range(4):
         #     if random.random() < 0.5:
         #         board.place(*board.randplace())
         data = []
         while not board.haswinner:
-            # print(board)
+            if debug:
+                print(board)
             prob = mcts.getActionProb(board)
             action = np.random.choice(range(ACTION_SIZE), p=prob)
             c = board.color
@@ -114,6 +115,8 @@ class Coach:
             # v = mcts.query_v(board, action)
             # print(str(board), f"Color: {'O.X'[c+1]}, Action: {board.int2move(action)}, Value: {v}")
         data = [(d[0], d[2], 1 if d[1] == board.winner else -1) for d in data]
+        if debug:
+            print("Winner = ", "O.X"[board.winner + 1])
         return data
 
     def learn(self) -> NNet:
@@ -125,7 +128,7 @@ class Coach:
         for _ in tqdm(range(self.args.numEps)):
             data = self.selfplayEpsisode(mcts)
             trainExamples.extend(data)
-            tqdm.write(str(len(trainExamples)))
+            # tqdm.write(str(len(trainExamples)))
             # tqdm.write(f"Collecting training data {len(trainExamples)}")
             if len(trainExamples) >= self.args.maxlenOfQueue:
                 break
@@ -137,6 +140,8 @@ class Coach:
         self.info.dataset.append(filename)
         if len(self.info.dataset) > self.args.numItersForTrainExamplesHistory:
             self.info.dataset.pop(0)
+        with open(self.path, "w") as f:
+            json.dump(self.info, f)
 
         trainingData = []
         for filename in self.info.dataset:

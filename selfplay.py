@@ -1,3 +1,4 @@
+import math
 import datetime
 import random
 import torch
@@ -9,7 +10,7 @@ import numpy as np
 from collections import deque
 from nnet import device, map_location, NNet
 from mcts import MCTS
-from game import Board, ACTION_SIZE, rotate_bundle
+from game import Board, ACTION_SIZE, rotate_bundle, rotate
 import pickle
 from utils import dotdict
 
@@ -23,7 +24,7 @@ defaultargs = dotdict({
     'maxlenOfQueue': 20000,  # maxlenOfQueue 个样本为一组
     'numItersForTrainExamplesHistory': 5,  # 保留最近 numItersForTrainExamplesHistory 组样本，将他们混合后 shuffle 出训练集
     'arenaCompare': 40,  # 与历史模型对弈 arenaCompare 次，用于评估新模型的优劣
-    'updateThreshold': 0.55,  # 新模型胜率超过 updateThreshold 时，接受新模型
+    'updateThreshold': 0.6,  # 新模型胜率超过 updateThreshold 时，接受新模型
 })
 
 
@@ -62,7 +63,7 @@ class Coach:
             nnet = NNet(0.5, 128, 256).to(device)
             nnet.apply(weights_init)
         batch_size = 64000
-        epoch = len(dataset) // batch_size
+        epoch = math.ceil(len(dataset) / batch_size)
         for i in range(epoch):
             print(f"Epoch {i}, batch size {batch_size}")
             data = dataset[i * batch_size: (i + 1) * batch_size]
@@ -97,8 +98,8 @@ class Coach:
         #     if random.random() < 0.5:
         #         board.place(*board.randplace())
         data = []
-        # print(board)
         while not board.haswinner:
+            # print(board)
             prob = mcts.getActionProb(board)
             action = np.random.choice(range(ACTION_SIZE), p=prob)
             c = board.color
@@ -107,6 +108,7 @@ class Coach:
             for _ in range(4):
                 data.append((input, c, prob))
                 input = rotate_bundle(input, board.n)
+                prob = np.append(rotate(prob[:-1], board.n), prob[-1]) 
 
             board.place(*board.int2move(action))
             # v = mcts.query_v(board, action)
@@ -123,7 +125,8 @@ class Coach:
         for _ in tqdm(range(self.args.numEps)):
             data = self.selfplayEpsisode(mcts)
             trainExamples.extend(data)
-            tqdm.write(f"Collecting training data {len(trainExamples)}")
+            tqdm.write(str(len(trainExamples)))
+            # tqdm.write(f"Collecting training data {len(trainExamples)}")
             if len(trainExamples) >= self.args.maxlenOfQueue:
                 break
         random.shuffle(trainExamples)
@@ -147,9 +150,9 @@ class Coach:
 
     def compete(self, nnet1: NNet, nnet2: NNet) -> tuple:
         win, lose = 0, 0
-        for _ in range(self.args.arenaCompare):
-            mcts1 = MCTS(nnet1, self.args)
-            mcts2 = MCTS(nnet2, self.args)
+        mcts1 = MCTS(nnet1, self.args)
+        mcts2 = MCTS(nnet2, self.args)    
+        for _ in tqdm(range(self.args.arenaCompare)):
             flag = 1
             if random.random() < 0.5:
                 role = {1: mcts1, -1: mcts2}
@@ -158,19 +161,21 @@ class Coach:
                 flag = -1
             board = Board()
             while not board.haswinner:
-                prob = role[board.color].getActionProb(board, temp=0)
+                prob = role[board.color].getActionProb(board, temp=0.1)
                 action = np.random.choice(range(ACTION_SIZE), p=prob)
                 board.place(*board.int2move(action))
             if board.winner == flag:
                 win += 1
             else:
                 lose += 1
+            print(f"Win = {win}, Lose = {lose}")
         return win, lose
 
     def run(self):
         for _ in range(self.args.numIters):
             newnnet, filename = self.learn()
             win, lose = self.compete(newnnet, load_model(self.info.best))
+            print(f"Win = {win}, Lose = {lose}")
             if win / (win + lose) > self.args.updateThreshold:
                 print(f"Accept new model {filename}")
                 self.info.best = filename
@@ -181,5 +186,6 @@ class Coach:
                 print(f"Reject new model {filename}")
 
 
-coach = Coach("data/info.json")
-coach.run()
+if __name__ == '__main__':
+    coach = Coach("data/info.json")
+    coach.run()

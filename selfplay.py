@@ -19,8 +19,8 @@ from utils import dotdict
 """
 defaultargs = dotdict({
     'numIters': 1000,  # 策略迭代 numIters 次数
-    'numEps': 200,  # 进行完整的 numEps 轮游戏
-    'numMCTSSims': 200,  # 在每一轮游戏的每一个节点，运行 numMCTSSims 次 MCTS 模拟后再采样行动和获取样本
+    'numEps': 100,  # 进行完整的 numEps 轮游戏
+    'numMCTSSims': 100,  # 在每一轮游戏的每一个节点，运行 numMCTSSims 次 MCTS 模拟后再采样行动和获取样本
     'maxlenOfQueue': 20000,  # maxlenOfQueue 个样本为一组
     'numItersForTrainExamplesHistory': 10,  # 保留最近 numItersForTrainExamplesHistory 组样本，将他们混合后 shuffle 出训练集
     'arenaCompare': 50,  # 与历史模型对弈 arenaCompare 次，用于评估新模型的优劣
@@ -76,7 +76,7 @@ class Coach:
             data_output2 = data_output2.view(-1, 1)
 
             # train nnet with data
-            optimizer = optim.Adam(nnet.parameters(), lr=0.0003)  # , weight_decay=1e-4)
+            optimizer = optim.Adam(nnet.parameters(), lr=0.0005)  # , weight_decay=1e-4)
             for _ in range(10):
                 output1, output2 = nnet(data_input)
                 # 计算交叉熵

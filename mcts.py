@@ -20,6 +20,7 @@ class MCTS:
     Nsa: Dict[Tuple[bytes, int], int]      # (s, a) 被访问的次数
 
     def __init__(self, nnet: NNet = None, args: dotdict = None):
+        print('debug init')
         self.nnet = nnet
         self.args = args
         self.Ps = {}

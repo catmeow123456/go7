@@ -1,1 +1,1 @@
-nohup python selfplay.py >> my.log 2>&1 &
+nohup python selfplay.py >> log.txt 2>&1 &

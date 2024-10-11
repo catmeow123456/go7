@@ -10,7 +10,7 @@ import numpy as np
 from collections import deque
 from nnet import device, map_location, NNet
 from mcts import MCTS
-from game import Board, ACTION_SIZE, rotate_bundle, rotate
+from game import Board, ACTION_SIZE, rotate_bundle, rotate, flip_bundle, flip
 import pickle
 from utils import dotdict
 
@@ -20,8 +20,8 @@ from utils import dotdict
 defaultargs = dotdict({
     'numIters': 1000,  # 策略迭代 numIters 次数
     'numEps': 100,  # 进行完整的 numEps 轮游戏
-    'numMCTSSims': 100,  # 在每一轮游戏的每一个节点，运行 numMCTSSims 次 MCTS 模拟后再采样行动和获取样本
-    'maxlenOfQueue': 20000,  # maxlenOfQueue 个样本为一组
+    'numMCTSSims': 50,  # 在每一轮游戏的每一个节点，运行 numMCTSSims 次 MCTS 模拟后再采样行动和获取样本
+    'maxlenOfQueue': 100000,  # maxlenOfQueue 个样本为一组
     'numItersForTrainExamplesHistory': 10,  # 保留最近 numItersForTrainExamplesHistory 组样本，将他们混合后 shuffle 出训练集
     'arenaCompare': 50,  # 与历史模型对弈 arenaCompare 次，用于评估新模型的优劣
     'updateThreshold': 0.6,  # 新模型胜率超过 updateThreshold 时，接受新模型
@@ -76,7 +76,7 @@ class Coach:
             data_output2 = data_output2.view(-1, 1)
 
             # train nnet with data
-            optimizer = optim.Adam(nnet.parameters(), lr=0.0005)  # , weight_decay=1e-4)
+            optimizer = optim.Adam(nnet.parameters(), lr=0.001)  # , weight_decay=1e-4)
             for _ in range(10):
                 output1, output2 = nnet(data_input)
                 # 计算交叉熵
@@ -108,8 +108,10 @@ class Coach:
             input = board.bundled_input()
             for _ in range(4):
                 data.append((input, c, prob))
+                data.append((flip_bundle(input, board.n), c, 
+                             np.append(flip(prob[:-1], board.n), prob[-1])))
                 input = rotate_bundle(input, board.n)
-                prob = np.append(rotate(prob[:-1], board.n), prob[-1]) 
+                prob = np.append(rotate(prob[:-1], board.n), prob[-1])
 
             board.place(*board.int2move(action))
             # v = mcts.query_v(board, action)
@@ -120,12 +122,13 @@ class Coach:
         return data
 
     def learn(self) -> NNet:
-        mcts = MCTS(None, self.args)
+        nnet = None
         if hasattr(self.info, "best"):
-            mcts.nnet = load_model(self.info.best)
+            nnet = load_model(self.info.best)
 
         trainExamples = deque([], maxlen=self.args.maxlenOfQueue)
         for _ in tqdm(range(self.args.numEps)):
+            mcts = MCTS(nnet, self.args)
             data = self.selfplayEpsisode(mcts)
             trainExamples.extend(data)
             # tqdm.write(str(len(trainExamples)))
@@ -157,7 +160,7 @@ class Coach:
         win, lose = 0, 0
         mcts1 = MCTS(nnet1, self.args)
         mcts2 = MCTS(nnet2, self.args)    
-        for _ in tqdm(range(self.args.arenaCompare)):
+        for _ in range(self.args.arenaCompare):
             flag = 1
             if random.random() < 0.5:
                 role = {1: mcts1, -1: mcts2}
@@ -166,7 +169,7 @@ class Coach:
                 flag = -1
             board = Board()
             while not board.haswinner:
-                prob = role[board.color].getActionProb(board, temp=0.1)
+                prob = role[board.color].getActionProb(board, temp=0.3)
                 action = np.random.choice(range(ACTION_SIZE), p=prob)
                 board.place(*board.int2move(action))
             if board.winner == flag:

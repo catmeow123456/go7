@@ -169,6 +169,68 @@ def rotate_bundle(bundle: np.ndarray, N: int) -> np.ndarray:
     """
     return np.array([rotate(bundle[i], N) for i in range(len(bundle))])
 
+def flip(board: np.ndarray, N: int) -> np.ndarray:
+    """
+    辅助函数，将棋盘水平翻转
+    """
+    return np.flip(board, axis=0)
+
+def flip_bundle(bundle: np.ndarray, N: int) -> np.ndarray:
+    return np.array([flip(bundle[i], N) for i in range(len(bundle))])
+
+
+def game_end(game: Board):
+    """
+    对残局分析气眼和联通分支的大小，判断是否 PASS
+    """
+    if game.referee.previous_pass:
+        count = game.board.sum()
+        v = (1 if count > 0 else -1 if count < 0 else 0) * game.color
+        if v > 0:
+            # 对手选择 pass，而我方优，选择 pass。
+            return True
+    n = game.n
+    for i in range(n):
+        for j in range(n):
+            if game.board[i][j] == 0:
+                for d0, d1 in [(-1,0), (1,0), (0,-1), (0,1)]:
+                    if i + d0 < 0 or i + d0 >= n or j + d1 < 0 or j + d1 >= n:
+                        continue
+                    if game.board[i+d0, j+d1] == 0:
+                        return False
+
+    def liberty(x, y, c, visit):
+        if x < 0 or x >= n or y < 0 or y >= n:
+            return 0
+        if visit[x][y]:
+            return 0
+        if game.board[x][y] == 0:
+            visit[x][y] = True
+            return 1
+        if game.board[x][y] != c:
+            return 0
+        visit[x][y] = True
+        return liberty(x-1, y, c, visit) + liberty(x+1, y, c, visit) \
+            + liberty(x, y-1, c, visit) + liberty(x, y+1, c, visit)
+
+    visit = np.zeros((n, n), dtype=np.bool_)
+    for i in range(n):
+        for j in range(n):
+            if not visit[i][j] and game.board[i][j] == game.color:
+                c = game.board[i][j]
+                lib = liberty(i, j, c, visit)
+                if lib >= 3:
+                    return False
+    visit.fill(False)
+    for i in range(n):
+        for j in range(n):
+            if not visit[i][j] and game.board[i][j] == -game.color:
+                c = game.board[i][j]
+                lib = liberty(i, j, c, visit)
+                if lib <= 1:
+                    return False
+    return True
+
 
 def evaluate(board: Board) -> tuple[int, int]:
     """

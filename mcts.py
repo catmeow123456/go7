@@ -2,7 +2,7 @@ import time
 import math
 import numpy as np
 from typing import Dict, Tuple
-from game import Board, ACTION_SIZE, evaluate
+from game import Board, ACTION_SIZE, game_end, PASS
 from nnet import NNet
 from utils import dotdict
 
@@ -20,34 +20,14 @@ class MCTS:
     Nsa: Dict[Tuple[bytes, int], int]      # (s, a) 被访问的次数
 
     def __init__(self, nnet: NNet = None, args: dotdict = None):
-        print('debug init')
         self.nnet = nnet
         self.args = args
+        self.valids = {}
+
         self.Ps = {}
         self.Ns = {}
         self.Qsa = {}
         self.Nsa = {}
-
-    def best_move(self, game: Board, timeout: float) -> int:
-        if timeout > 0:
-            start_time = time.perf_counter()
-            count = 0
-            while time.perf_counter() - start_time < timeout:
-                count += 1
-                self._search(game.copy(), np.count_nonzero(game.board))
-            print('count=', count)
-
-        s = game.hashed_state
-        # 选择探索次数最多的动作
-        best_action = -1
-        best_value = -1
-        for a in range(ACTION_SIZE):
-            nsa = self.Nsa.get((s, a), None)
-            if nsa is not None and nsa > best_value:
-                best_value = nsa
-                best_action = a
-        # print(best_action, best_value)
-        return best_action
 
     def query_v(self, game: Board, action) -> float:
         s = game.hashed_state
@@ -60,9 +40,21 @@ class MCTS:
         :param temp: 温度参数
         :return: 动作概率分布
         """
+        if game_end(game):
+            arr = np.zeros(ACTION_SIZE)
+            arr[PASS] = 1
+            return arr
+        s = game.hashed_state
+        valids = self.valids.get(s, None)
+        if valids is None:
+            valids = game.legal_moves_input()
+        if valids.sum() == 1:
+            # 无路可走，只能 PASS
+            arr = np.zeros(ACTION_SIZE)
+            arr[PASS] = 1
+            return arr
         for _ in range(self.args.numMCTSSims):
             self._search(game.copy())
-        s = game.hashed_state
         Ns = np.array([self.Nsa.get((s, a), 0) for a in range(ACTION_SIZE)])
         if temp == 0:
             best_as = np.argwhere(Ns == np.max(Ns)).flatten()
@@ -78,9 +70,18 @@ class MCTS:
         if hasattr(game, 'winner'):
             v = float(game.winner * game.color)
             return -v
+        if game_end(game):
+            game.place(-1, -1)
+            # 已经到终局，选择 pass
+            return -self._search(game)
+        # 其他情况不选择 pass
         s = game.hashed_state
-        valids = game.legal_moves_input()
-
+        valids = self.valids.get(s, None)
+        if valids is None:
+            valids = game.legal_moves_input()
+        if valids.sum() == 1:
+            game.place(-1, -1)
+            return -self._search(game)
         # 叶子结点 （ 如果没有访问过，更新 Ps, Ns ）扩展
         if s not in self.Ps:
             if self.nnet is not None:
@@ -116,7 +117,7 @@ class MCTS:
 
         # 选择 UCB 最大的动作
         for a in range(ACTION_SIZE):
-            if not valids[a]:
+            if a == PASS or not valids[a]:
                 continue
             qsa = self.Qsa.get((s, a), None)
             if qsa is not None:

@@ -5,16 +5,10 @@
         "data/nnet-2024-10-10 11:55:23.pt",
         "data/nnet-2024-10-10 15:34:51.pt",
         "data/nnet-2024-10-10 16:55:52.pt",
-        "data/nnet-2024-10-10 19:51:52.pt"
+        "data/nnet-2024-10-10 19:51:52.pt",
+        "data/nnet-2024-10-10 21:50:57.pt"
     ],
-    "best": "data/nnet-2024-10-10 19:51:52.pt",
+    "best": "data/nnet-2024-10-10 21:50:57.pt",
     "dataset": [
-        "data/dataset-2024-10-10 15:34:51.pkl",
-        "data/dataset-2024-10-10 16:55:52.pkl",
-        "data/dataset-2024-10-10 17:43:48.pkl",
-        "data/dataset-2024-10-10 18:17:14.pkl",
-        "data/dataset-2024-10-10 19:03:20.pkl",
-        "data/dataset-2024-10-10 19:51:52.pkl",
-        "data/dataset-2024-10-10 20:40:30.pkl"
     ]
 }

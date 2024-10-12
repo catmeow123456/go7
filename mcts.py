@@ -61,10 +61,11 @@ class MCTS:
             best_a = np.random.choice(best_as)
             probs = np.zeros(ACTION_SIZE)
             probs[best_a] = 1
-            return probs
-        Ns = Ns ** (1 / temp)
-        Ns_sum = np.sum(Ns)
-        return Ns / Ns_sum
+        else:
+            Ns = Ns ** (1 / temp)
+            Ns_sum = np.sum(Ns)
+            probs = Ns / Ns_sum
+        return probs
 
     def _search(self, game: Board) -> float:
         if hasattr(game, 'winner'):

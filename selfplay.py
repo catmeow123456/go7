@@ -10,7 +10,7 @@ import numpy as np
 from collections import deque
 from nnet import device, map_location, NNet
 from mcts import MCTS
-from game import Board, ACTION_SIZE, rotate_bundle, rotate, flip_bundle, flip
+from game import Board, ACTION_SIZE, rotate_bundle, rotate, flip_bundle, flip, PASS
 import pickle
 from utils import dotdict
 
@@ -20,11 +20,11 @@ from utils import dotdict
 defaultargs = dotdict({
     'numIters': 1000,  # 策略迭代 numIters 次数
     'numEps': 100,  # 进行完整的 numEps 轮游戏
-    'numMCTSSims': 50,  # 在每一轮游戏的每一个节点，运行 numMCTSSims 次 MCTS 模拟后再采样行动和获取样本
+    'numMCTSSims': 500,  # 在每一轮游戏的每一个节点，运行 numMCTSSims 次 MCTS 模拟后再采样行动和获取样本
     'maxlenOfQueue': 100000,  # maxlenOfQueue 个样本为一组
     'numItersForTrainExamplesHistory': 10,  # 保留最近 numItersForTrainExamplesHistory 组样本，将他们混合后 shuffle 出训练集
     'arenaCompare': 50,  # 与历史模型对弈 arenaCompare 次，用于评估新模型的优劣
-    'updateThreshold': 0.6,  # 新模型胜率超过 updateThreshold 时，接受新模型
+    'updateThreshold': 0.55,  # 新模型胜率超过 updateThreshold 时，接受新模型
 })
 
 
@@ -76,7 +76,7 @@ class Coach:
             data_output2 = data_output2.view(-1, 1)
 
             # train nnet with data
-            optimizer = optim.Adam(nnet.parameters(), lr=0.001)  # , weight_decay=1e-4)
+            optimizer = optim.Adam(nnet.parameters(), lr=0.001, weight_decay=1e-4)
             for _ in range(10):
                 output1, output2 = nnet(data_input)
                 # 计算交叉熵
@@ -99,24 +99,35 @@ class Coach:
         #         board.place(*board.randplace())
         data = []
         while not board.haswinner:
-            if debug:
-                print(board)
             prob = mcts.getActionProb(board)
+            s = board.hashed_state
             action = np.random.choice(range(ACTION_SIZE), p=prob)
             c = board.color
+            v = mcts.Qsa.get((s, action), None)
+            if v is not None and v < -0.9:
+                board.winner = -c
+                break
+            if debug:
+                print(board, f"Color: {'O.X'[c+1]}, Action: {board.int2move(action)}, Value: {v}")
 
             input = board.bundled_input()
-            for _ in range(4):
-                data.append((input, c, prob))
-                data.append((flip_bundle(input, board.n), c, 
-                             np.append(flip(prob[:-1], board.n), prob[-1])))
-                input = rotate_bundle(input, board.n)
-                prob = np.append(rotate(prob[:-1], board.n), prob[-1])
+            if v is not None and action != PASS:
+                res = 0
+                for act in range(ACTION_SIZE):
+                    res += mcts.Qsa.get((s, act), 0) * prob[act]
+                if debug:
+                    print(f"Average Qsa = {res}")
+                for _ in range(4):
+                    data.append((input, prob, res))
+                    data.append((flip_bundle(input, board.n),
+                                 np.append(flip(prob[:-1], board.n), prob[-1]),
+                                 res))
+                    input = rotate_bundle(input, board.n)
+                    prob = np.append(rotate(prob[:-1], board.n), prob[-1])
 
             board.place(*board.int2move(action))
             # v = mcts.query_v(board, action)
             # print(str(board), f"Color: {'O.X'[c+1]}, Action: {board.int2move(action)}, Value: {v}")
-        data = [(d[0], d[2], 1 if d[1] == board.winner else -1) for d in data]
         if debug:
             print("Winner = ", "O.X"[board.winner + 1])
         return data
@@ -129,10 +140,9 @@ class Coach:
         trainExamples = deque([], maxlen=self.args.maxlenOfQueue)
         for _ in tqdm(range(self.args.numEps)):
             mcts = MCTS(nnet, self.args)
-            data = self.selfplayEpsisode(mcts)
+            data = self.selfplayEpsisode(mcts, debug=False)
             trainExamples.extend(data)
             # tqdm.write(str(len(trainExamples)))
-            # tqdm.write(f"Collecting training data {len(trainExamples)}")
             if len(trainExamples) >= self.args.maxlenOfQueue:
                 break
         random.shuffle(trainExamples)

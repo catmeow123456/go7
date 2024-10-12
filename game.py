@@ -199,34 +199,37 @@ def game_end(game: Board):
                     if game.board[i+d0, j+d1] == 0:
                         return False
 
-    def liberty(x, y, c, visit):
+    def liberty(x, y, c, visit, id0):
         if x < 0 or x >= n or y < 0 or y >= n:
             return 0
-        if visit[x][y]:
+        if visit[x][y] == 1 or visit[x][y] == id0:
             return 0
         if game.board[x][y] == 0:
-            visit[x][y] = True
+            visit[x][y] = id0
             return 1
         if game.board[x][y] != c:
             return 0
-        visit[x][y] = True
-        return liberty(x-1, y, c, visit) + liberty(x+1, y, c, visit) \
-            + liberty(x, y-1, c, visit) + liberty(x, y+1, c, visit)
+        visit[x][y] = 1
+        return liberty(x-1, y, c, visit, id0) + liberty(x+1, y, c, visit, id0) \
+            + liberty(x, y-1, c, visit, id0) + liberty(x, y+1, c, visit, id0)
 
-    visit = np.zeros((n, n), dtype=np.bool_)
+    visit = np.zeros((n, n), dtype=np.int8)
+    id0 = 1
     for i in range(n):
         for j in range(n):
             if not visit[i][j] and game.board[i][j] == game.color:
+                id0 += 1
                 c = game.board[i][j]
-                lib = liberty(i, j, c, visit)
+                lib = liberty(i, j, c, visit, id0)
                 if lib >= 3:
                     return False
-    visit.fill(False)
+    visit.fill(0)
     for i in range(n):
         for j in range(n):
             if not visit[i][j] and game.board[i][j] == -game.color:
+                id0 += 1
                 c = game.board[i][j]
-                lib = liberty(i, j, c, visit)
+                lib = liberty(i, j, c, visit, id0)
                 if lib <= 1:
                     return False
     return True

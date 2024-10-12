@@ -1,7 +1,11 @@
+"""
+不知道为什么会写成这副鬼样子，以后有时间了再改一改，可能可以删掉
+"""
+
 import torch
 import numpy as np
 from game import Board
-from model import NNet, MCTS
+from mcts import NNet, MCTS
 TIME_LIMIT = 4
 
 

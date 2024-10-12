@@ -1,7 +1,7 @@
 import json
 import torch
 from game import Board
-from model import NNet, MCTS
+from mcts import NNet, MCTS
 TIME_LIMIT = 3.5
 
 

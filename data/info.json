@@ -1,1 +1,25 @@
-{"models": ["data/cnn.pt", "data/nnet-2024-10-10 11:42:20.pt", "data/nnet-2024-10-10 11:55:23.pt", "data/nnet-2024-10-10 15:34:51.pt", "data/nnet-2024-10-10 16:55:52.pt", "data/nnet-2024-10-10 19:51:52.pt", "data/nnet-2024-10-10 21:50:57.pt"], "best": "data/nnet-2024-10-10 21:50:57.pt", "dataset": ["data/dataset-2024-10-11 18:08:26.pkl", "data/dataset-2024-10-11 18:58:31.pkl", "data/dataset-2024-10-11 19:46:59.pkl", "data/dataset-2024-10-11 20:33:51.pkl", "data/dataset-2024-10-11 22:31:17.pkl", "data/dataset-2024-10-12 00:06:16.pkl", "data/dataset-2024-10-12 02:47:37.pkl", "data/dataset-2024-10-12 05:27:09.pkl", "data/dataset-2024-10-12 08:10:38.pkl", "data/dataset-2024-10-12 11:06:09.pkl"]}
+{
+    "models": [
+        "data/cnn.pt",
+        "data/nnet-2024-10-10 11:42:20.pt",
+        "data/nnet-2024-10-10 11:55:23.pt",
+        "data/nnet-2024-10-10 15:34:51.pt",
+        "data/nnet-2024-10-10 16:55:52.pt",
+        "data/nnet-2024-10-10 19:51:52.pt",
+        "data/nnet-2024-10-10 21:50:57.pt",
+        "data/nnet-2024-10-12 13:58:48.pt"
+    ],
+    "best": "data/nnet-2024-10-12 13:58:48.pt",
+    "dataset": [
+        "data/dataset-2024-10-11 18:58:31.pkl",
+        "data/dataset-2024-10-11 19:46:59.pkl",
+        "data/dataset-2024-10-11 20:33:51.pkl",
+        "data/dataset-2024-10-11 22:31:17.pkl",
+        "data/dataset-2024-10-12 00:06:16.pkl",
+        "data/dataset-2024-10-12 02:47:37.pkl",
+        "data/dataset-2024-10-12 05:27:09.pkl",
+        "data/dataset-2024-10-12 08:10:38.pkl",
+        "data/dataset-2024-10-12 11:06:09.pkl",
+        "data/dataset-2024-10-12 13:58:48.pkl"
+    ]
+}

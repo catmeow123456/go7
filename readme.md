@@ -32,3 +32,22 @@ nohup python selfplay.py >> log.txt 2>&1 &
 而过去的一段时间里以为人工调整这些参数能够获得好的效果，但是都失败了，反而浪费了很长的时间。这个事情有没有什么理论指导可以少走弯路。
 
 ## 4. 强化学习有没有什么比较好的学习路径，感觉自己有非常多的困惑，想寻找一个比较坚实可靠的理论基础
+
+## 5. alphago 采用的 PUCT 公式是怎么来的，有什么依据
+为什么 alphago 采用的带有策略先验的 PUCT 公式是
+$$
+u(s,a) = \bar{Q}_{s,a} + c_\mathrm{puct} P(s,a) \frac{\sum_b N(s,b)}{1 + N(s,a)}
+$$
+而一般的 UCT 公式是
+$$
+u(s,a)=\bar{Q}_{s,a} + c_\mathrm{uct} \sqrt{\frac{2\ln t}{N(s,a)}}
+$$
+这两个公式好像完全不一样？这些公式是怎么被写出来的？
+
+在面临具体的强化学习问题时，怎样去权衡"探索"和"经验"，哪些情况下只能用 $\epsilon$-greedy，哪些情况能用 UCT 公式？
+
+## 6. mcts 收集数据的过程太费时间了，有没有什么办法可以并行加快？
+
+之前尝试过用 python 的 concurrent.futures 模块去同时执行多次 selfplay，但是却发现没有得到加速，原因可能是用神经网络去 predict 的过程没有真正地并行。
+
+有没有什么比较好的并行方法，比如在 mcts 搜索的过程中，等待收到一定数量个 predict request 后，将这些 requests 的输入合并为一个 tensor 一起做 predict，在 predict 结束之前这些 mcts 线程被锁死，直到 predict 结束以后将结果返还给各个线程。这样做能有效加速 selfplay 过程吗？这样的代码应该怎样写？

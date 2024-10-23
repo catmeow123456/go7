@@ -96,7 +96,7 @@ class Board:
             return False
         if x == -1 and y == -1:
             newboard, winner = self.referee.judge(self.board.tolist(), None)
-            if winner != 0:
+            if newboard is None:
                 self.winner = winner
                 self.color = -self.color
                 return True
@@ -199,7 +199,9 @@ def game_end(game: Board):
                     if game.board[i+d0, j+d1] == 0:
                         return False
 
-    def liberty(x, y, c, visit, id0):
+    def liberty(x, y, c, visit, id0, depth=0):
+        if depth>100:
+            print(x, y, depth)
         if x < 0 or x >= n or y < 0 or y >= n:
             return 0
         if visit[x][y] == 1 or visit[x][y] == id0:
@@ -210,8 +212,8 @@ def game_end(game: Board):
         if game.board[x][y] != c:
             return 0
         visit[x][y] = 1
-        return liberty(x-1, y, c, visit, id0) + liberty(x+1, y, c, visit, id0) \
-            + liberty(x, y-1, c, visit, id0) + liberty(x, y+1, c, visit, id0)
+        return liberty(x-1, y, c, visit, id0, depth+1) + liberty(x+1, y, c, visit, id0, depth+1) \
+            + liberty(x, y-1, c, visit, id0, depth+1) + liberty(x, y+1, c, visit, id0, depth+1)
 
     visit = np.zeros((n, n), dtype=np.int8)
     id0 = 1

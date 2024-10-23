@@ -66,3 +66,17 @@ class NNet(nn.Module):
             pi, v = self(board)
 
         return torch.exp(pi).cpu().numpy()[0], v.cpu().numpy()[0]
+
+    def predict_multiple(self, input: np.ndarray):
+        board = torch.from_numpy(input.astype(np.float32)).to(device)
+        board = board.view(-1, CHANNELS_IN, N, N)
+
+        self.eval()
+        with torch.no_grad():
+            pi, v = self(board)
+
+        pi, v = torch.exp(pi).cpu().numpy(), v.cpu().numpy()
+        return [
+            (pi[i], v[i])
+            for i in range(len(pi))
+        ]

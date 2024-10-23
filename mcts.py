@@ -4,7 +4,7 @@ import numpy as np
 from typing import Dict, Tuple
 from game import Board, ACTION_SIZE, game_end, PASS
 from nnet import NNet
-from utils import dotdict
+from utils import Args
 
 EPS = 1e-8
 
@@ -12,16 +12,17 @@ EPS = 1e-8
 class MCTS:
     nnet: NNet
     cpuct: float = 1.0
-    args: dotdict
+    args: Args
 
     Ps: Dict[bytes, np.ndarray]    # 记忆化策略网络输出的概率分布
     Ns: Dict[bytes, int]       # 状态 s 被访问的次数
     Qsa: Dict[Tuple[bytes, int], float]  # stores Q values for s,a (as defined in the paper)
     Nsa: Dict[Tuple[bytes, int], int]      # (s, a) 被访问的次数
 
-    def __init__(self, nnet: NNet = None, args: dotdict = None):
+    def __init__(self, nnet: NNet = None, args: Args = None):
         self.nnet = nnet
         self.args = args
+        self.pipe = None
         self.valids = {}
 
         self.Ps = {}
@@ -67,14 +68,16 @@ class MCTS:
             probs = Ns / Ns_sum
         return probs
 
-    def _search(self, game: Board) -> float:
+    def _search(self, game: Board, depth=0) -> float:
+        if depth>200:
+            print(f"depth = {depth}\n{game}")
         if hasattr(game, 'winner'):
             v = float(game.winner * game.color)
             return -v
         if game_end(game):
             game.place(-1, -1)
             # 已经到终局，选择 pass
-            return -self._search(game)
+            return -self._search(game, depth+1)
         # 其他情况不选择 pass
         s = game.hashed_state
         valids = self.valids.get(s, None)
@@ -82,11 +85,15 @@ class MCTS:
             valids = game.legal_moves_input()
         if valids.sum() == 1:
             game.place(-1, -1)
-            return -self._search(game)
+            return -self._search(game, depth+1)
         # 叶子结点 （ 如果没有访问过，更新 Ps, Ns ）扩展
         if s not in self.Ps:
             if self.nnet is not None:
-                ps, v = self.nnet.predict(game.bundled_input(valids))
+                if self.pipe is not None:
+                    self.pipe.send(game.bundled_input(valids))
+                    ps, v = self.pipe.recv()
+                else:
+                    ps, v = self.nnet.predict(game.bundled_input(valids))
                 ps = ps * valids
                 ps_sum = np.sum(ps)
                 if ps_sum > 0:
@@ -96,14 +103,6 @@ class MCTS:
                     ps /= np.sum(ps)
             else:
                 ps = valids / np.sum(valids)
-            # 一些人类先验：不到万不得已不要加
-            # if s == b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00':
-            #     ps[game.move2int(3, 3)] *= 1000
-            # if s == b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xff\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00':
-            #     ps[game.move2int(2, 3)] *= 1000
-            #     ps[game.move2int(3, 2)] *= 1000
-            #     ps[game.move2int(2, 4)] *= 1000
-            #     ps[game.move2int(4, 2)] *= 1000
             self.Ps[s] = ps
             self.Ns[s] = 0
             return -float(v)
@@ -132,7 +131,7 @@ class MCTS:
         a = best_act
 
         game.place(*game.int2move(a))
-        v = self._search(game)
+        v = self._search(game, depth+1)
 
         qsa = self.Qsa.get((s, a), None)
         if qsa is not None:

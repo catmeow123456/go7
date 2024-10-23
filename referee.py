@@ -1,5 +1,5 @@
 class Referee:
-    def __init__(self, WIDTH=7, komi=0.75):
+    def __init__(self, WIDTH=7, komi=2):
         self.width = WIDTH
         self.komi = komi
         self.current_player = 1  # 1 for black, -1 for white
@@ -14,7 +14,7 @@ class Referee:
             # If a player passes, check for consecutive passes to end the game
             if self.previous_pass:
                 winner = self.determine_winner(board_state)
-                return board_state, winner
+                return None, winner
             else:
                 self.previous_pass = True
                 self.current_player *= -1

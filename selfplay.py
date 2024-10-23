@@ -12,20 +12,13 @@ from nnet import device, map_location, NNet
 from mcts import MCTS
 from game import Board, ACTION_SIZE, rotate_bundle, rotate, flip_bundle, flip, PASS
 import pickle
-from utils import dotdict
+from utils import Args
+from multiprocessing import Pipe, Process, Queue, set_start_method
 
 """
 所有超参数都放这里
 """
-defaultargs = dotdict({
-    'numIters': 1000,  # 策略迭代 numIters 次数
-    'numEps': 100,  # 进行完整的 numEps 轮游戏
-    'numMCTSSims': 500,  # 在每一轮游戏的每一个节点，运行 numMCTSSims 次 MCTS 模拟后再采样行动和获取样本
-    'maxlenOfQueue': 100000,  # maxlenOfQueue 个样本为一组
-    'numItersForTrainExamplesHistory': 10,  # 保留最近 numItersForTrainExamplesHistory 组样本，将他们混合后 shuffle 出训练集
-    'arenaCompare': 50,  # 与历史模型对弈 arenaCompare 次，用于评估新模型的优劣
-    'updateThreshold': 0.55,  # 新模型胜率超过 updateThreshold 时，接受新模型
-})
+defaultargs = Args()
 
 
 def weights_init(m):
@@ -46,17 +39,80 @@ def load_model(filename: str) -> NNet:
     return nnet
 
 
+def selfplayEpsisode(id, mcts: MCTS, debug: bool = False, pipe = None):
+    mcts.pipe = pipe
+    board = Board()
+    data = []
+    while not board.haswinner:
+        prob = mcts.getActionProb(board)
+        s = board.hashed_state
+        action = np.random.choice(range(ACTION_SIZE), p=prob)
+        c = board.color
+        v = mcts.Qsa.get((s, action), None)
+        if v is not None and v < -0.9:
+            board.winner = -c
+            break
+        if debug:
+            print(f"Color: {'O.X'[c+1]}, Action: {board.int2move(action)}, Value: {v}", flush=True)
+
+        input = board.bundled_input()
+        if v is not None and action != PASS:
+            res = 0
+            for act in range(ACTION_SIZE):
+                res += mcts.Qsa.get((s, act), 0) * prob[act]
+            if debug:
+                print(f"Average Qsa = {res}", flush=True)
+            for _ in range(4):
+                data.append((input, prob, res))
+                data.append((flip_bundle(input, board.n),
+                                np.append(flip(prob[:-1], board.n), prob[-1]),
+                                res))
+                input = rotate_bundle(input, board.n)
+                prob = np.append(rotate(prob[:-1], board.n), prob[-1])
+
+        board.place(*board.int2move(action))
+        if debug:
+            print(board, flush=True)
+    mcts.pipe.send(None)
+    if debug:
+        print("Winner = ", "O.X"[board.winner + 1], flush=True)
+    with open(f"tmp/{id}.pkl", "wb") as f:
+        pickle.dump(data, f)
+
+
+def predict_together(nnet, pipe_list):
+    end_ids = set()
+    while True:
+        id_list = []
+        input_list = []
+        for id in range(len(pipe_list)):
+            if id in end_ids:
+                continue
+            input = pipe_list[id].recv()
+            if input is None:
+                end_ids.add(id)
+                print(f"Process {id} end", flush=True)
+                continue
+            id_list.append(id)
+            input_list.append(input)
+        if len(input_list) == 0:
+            print("All process end", flush=True)
+            return
+        input_list = np.array(input_list)
+        output = nnet.predict_multiple(input_list)
+        for id, out in zip(id_list, output):
+            pipe_list[id].send(out)
+
 class Coach:
     path: str
-    args: dotdict
-    info: dotdict
+    args: Args
+    info: dict
 
-    def __init__(self, infopath: str, args: dotdict = None):
+    def __init__(self, infopath: str, args: Args = None):
         self.path = infopath
         self.args = args if args is not None else defaultargs
         with open(infopath, "r") as f:
-            data = json.load(f)
-            self.info = dotdict(data)
+            self.info = json.load(f)
 
     def train(self, nnet: NNet, dataset: list) -> NNet:
         if nnet is None:
@@ -65,7 +121,7 @@ class Coach:
         batch_size = 64000
         epoch = math.ceil(len(dataset) / batch_size)
         for i in range(epoch):
-            print(f"Epoch {i}, batch size {batch_size}")
+            print(f"Epoch {i}, batch size {batch_size}", flush=True)
             data = dataset[i * batch_size: (i + 1) * batch_size]
 
             data_input = torch.tensor(np.array([d[0] for d in data]), dtype=torch.float32).to(device)
@@ -88,60 +144,38 @@ class Coach:
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
-                print(f'Loss1: {loss1.item()}, Loss2: {loss2.item()}')
+                print(f'Loss1: {loss1.item()}, Loss2: {loss2.item()}', flush=True)
 
         return nnet
 
-    def selfplayEpsisode(self, mcts: MCTS, debug: bool = False):
-        board = Board()
-        # for _ in range(4):
-        #     if random.random() < 0.5:
-        #         board.place(*board.randplace())
-        data = []
-        while not board.haswinner:
-            prob = mcts.getActionProb(board)
-            s = board.hashed_state
-            action = np.random.choice(range(ACTION_SIZE), p=prob)
-            c = board.color
-            v = mcts.Qsa.get((s, action), None)
-            if v is not None and v < -0.9:
-                board.winner = -c
-                break
-            if debug:
-                print(board, f"Color: {'O.X'[c+1]}, Action: {board.int2move(action)}, Value: {v}")
-
-            input = board.bundled_input()
-            if v is not None and action != PASS:
-                res = 0
-                for act in range(ACTION_SIZE):
-                    res += mcts.Qsa.get((s, act), 0) * prob[act]
-                if debug:
-                    print(f"Average Qsa = {res}")
-                for _ in range(4):
-                    data.append((input, prob, res))
-                    data.append((flip_bundle(input, board.n),
-                                 np.append(flip(prob[:-1], board.n), prob[-1]),
-                                 res))
-                    input = rotate_bundle(input, board.n)
-                    prob = np.append(rotate(prob[:-1], board.n), prob[-1])
-
-            board.place(*board.int2move(action))
-            # v = mcts.query_v(board, action)
-            # print(str(board), f"Color: {'O.X'[c+1]}, Action: {board.int2move(action)}, Value: {v}")
-        if debug:
-            print("Winner = ", "O.X"[board.winner + 1])
-        return data
-
     def learn(self) -> NNet:
         nnet = None
-        if hasattr(self.info, "best"):
-            nnet = load_model(self.info.best)
+        if "best" in self.info:
+            nnet = load_model(self.info["best"])
 
         trainExamples = deque([], maxlen=self.args.maxlenOfQueue)
-        for _ in tqdm(range(self.args.numEps)):
+        num_workers = 8
+        for _ in tqdm(range(self.args.numEps // num_workers)):
             mcts = MCTS(nnet, self.args)
-            data = self.selfplayEpsisode(mcts, debug=False)
-            trainExamples.extend(data)
+            pipe_list = [Pipe() for _ in range(num_workers)]
+            process_list = []
+            for id in range(num_workers):
+                process_list.append(Process(target=selfplayEpsisode,
+                                            args=(id, mcts,
+                                                  True if id == 0 else False, pipe_list[id][0])))
+            process_aux = Process(target=predict_together,
+                                  args=(nnet, [pipe[1] for pipe in pipe_list]))
+            for process in process_list:
+                process.start()
+            process_aux.start()
+            for process in process_list:
+                process.join()
+            process_aux.join()
+            print('All process joined')
+            for id in range(num_workers):
+                with open(f"tmp/{id}.pkl", "rb") as f:
+                    data = pickle.load(f)
+                trainExamples.extend(data)
             # tqdm.write(str(len(trainExamples)))
             if len(trainExamples) >= self.args.maxlenOfQueue:
                 break
@@ -150,14 +184,14 @@ class Coach:
         filename = f"data/dataset-{id}.pkl"
         with open(f"data/dataset-{id}.pkl", "wb") as f:
             pickle.dump(trainExamples, f)
-        self.info.dataset.append(filename)
-        if len(self.info.dataset) > self.args.numItersForTrainExamplesHistory:
-            self.info.dataset.pop(0)
+        self.info["dataset"].append(filename)
+        if len(self.info["dataset"]) > self.args.numItersForTrainExamplesHistory:
+            self.info["dataset"].pop(0)
         with open(self.path, "w") as f:
             json.dump(self.info, f)
 
         trainingData = []
-        for filename in self.info.dataset:
+        for filename in self.info["dataset"]:
             with open(filename, "rb") as f:
                 trainingData.extend(pickle.load(f))
         random.shuffle(trainingData)
@@ -192,12 +226,12 @@ class Coach:
     def run(self):
         for _ in range(self.args.numIters):
             newnnet, filename = self.learn()
-            win, lose = self.compete(newnnet, load_model(self.info.best))
+            win, lose = self.compete(newnnet, load_model(self.info["best"]))
             print(f"Win = {win}, Lose = {lose}")
             if win / (win + lose) > self.args.updateThreshold:
                 print(f"Accept new model {filename}")
-                self.info.best = filename
-                self.info.models.append(filename)
+                self.info["best"] = filename
+                self.info["models"].append(filename)
                 with open(self.path, "w") as f:
                     json.dump(self.info, f)
             else:
@@ -205,5 +239,6 @@ class Coach:
 
 
 if __name__ == '__main__':
+    set_start_method('spawn')
     coach = Coach("data/info.json")
     coach.run()

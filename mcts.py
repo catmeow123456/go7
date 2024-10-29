@@ -1,5 +1,6 @@
 import copy
 import math
+import time
 import numpy as np
 from typing import Dict, Tuple
 from game import Board, ACTION_SIZE, game_end, PASS
@@ -33,6 +34,24 @@ class MCTS:
     def query_v(self, game: Board, action) -> float:
         s = game.hashed_state
         return self.Qsa.get((s, action), None)
+
+    def best_move(self, game: Board, timeout=9) -> int:
+        if game_end(game):
+            return PASS
+        s = game.hashed_state
+        valids = self.valids.get(s, None)
+        if valids is None:
+            valids = game.legal_moves_input()
+        if valids.sum() == 1:
+            return PASS
+        # 开始计时，限制搜索时间
+        start_time = time.time()
+        while time.time() - start_time < timeout:
+            self._search(game.copy())
+        Ns = np.array([self.Nsa.get((s, a), 0) for a in range(ACTION_SIZE)])
+        best_as = np.argwhere(Ns == np.max(Ns)).flatten()
+        best_a = np.random.choice(best_as)
+        return best_a
 
     def getActionProb(self, game: Board, temp=1) -> np.ndarray:
         """

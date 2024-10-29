@@ -13,7 +13,7 @@ class Args:
         self.maxlenOfQueue = 100000
         self.numItersForTrainExamplesHistory = 10
         self.arenaCompare = 50
-        self.updateThreshold = 0.59
+        self.updateThreshold = 0.55
 
 class AverageMeter(object):
     def __init__(self):

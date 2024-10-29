@@ -18,7 +18,6 @@
         "data/nnet-2024-10-14 21:43:23.pt",
         "data/nnet-2024-10-15 03:03:59.pt",
         "data/nnet-2024-10-15 13:43:59.pt",
-        "data/nnet-2024-10-15 21:30:00.pt",
         "data/nnet-2024-10-16 05:17:30.pt",
         "data/nnet-2024-10-16 10:29:51.pt",
         "data/nnet-2024-10-16 15:44:30.pt",
@@ -34,12 +33,11 @@
         "data/nnet-2024-10-24 21:41:40.pt",
         "data/nnet-2024-10-29 00:16:44.pt",
         "data/nnet-2024-10-29 04:18:56.pt",
-        "data/nnet-2024-10-29 09:12:52.pt"
+        "data/nnet-2024-10-29 13:48:13.pt",
+        "data/nnet-2024-10-29-14-22-30.pt"
     ],
-    "best": "data/nnet-2024-10-29 09:12:52.pt",
+    "best": "data/nnet-2024-10-29-14-22-30.pt",
     "dataset": [
-        "data/dataset-2024-10-29 09:12:52.pkl",
-        "data/dataset-2024-10-29 09:41:50.pkl",
         "data/dataset-2024-10-29 10:07:58.pkl",
         "data/dataset-2024-10-29 10:34:18.pkl",
         "data/dataset-2024-10-29 11:01:06.pkl",
@@ -47,6 +45,8 @@
         "data/dataset-2024-10-29 11:57:17.pkl",
         "data/dataset-2024-10-29 12:24:31.pkl",
         "data/dataset-2024-10-29 12:53:31.pkl",
-        "data/dataset-2024-10-29 13:21:00.pkl"
+        "data/dataset-2024-10-29 13:21:00.pkl",
+        "data/dataset-2024-10-29 13:48:13.pkl",
+        "data/dataset-2024-10-29-14-22-30.pkl"
     ]
 }

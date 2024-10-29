@@ -1,3 +1,4 @@
+import os
 import math
 import datetime
 import random
@@ -76,7 +77,7 @@ def selfplayEpsisode(id, mcts: MCTS, debug: bool = False, pipe = None):
     mcts.pipe.send(None)
     if debug:
         print("Winner = ", "O.X"[board.winner + 1], flush=True)
-    with open(f"tmp/{id}.pkl", "wb") as f:
+    with open(os.path.join("tmp", f"{id}.pkl"), "wb") as f:
         pickle.dump(data, f)
 
 
@@ -179,16 +180,16 @@ class Coach:
                 process.terminate()
             process_aux.terminate()
             for id in range(num_workers):
-                with open(f"tmp/{id}.pkl", "rb") as f:
+                with open(os.path.join("tmp", f"{id}.pkl"), "rb") as f:
                     data = pickle.load(f)
                 trainExamples.extend(data)
             # tqdm.write(str(len(trainExamples)))
             if len(trainExamples) >= self.args.maxlenOfQueue:
                 break
         random.shuffle(trainExamples)
-        id = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        filename = f"data/dataset-{id}.pkl"
-        with open(f"data/dataset-{id}.pkl", "wb") as f:
+        id = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+        filename = os.path.join("data", f"dataset-{id}.pkl")
+        with open(filename, "wb") as f:
             pickle.dump(trainExamples, f)
         self.info["dataset"].append(filename)
         if len(self.info["dataset"]) > self.args.numItersForTrainExamplesHistory:
@@ -202,7 +203,7 @@ class Coach:
                 trainingData.extend(pickle.load(f))
         random.shuffle(trainingData)
         newnnet = self.train(mcts.nnet, trainingData)
-        filename = f"data/nnet-{id}.pt"
+        filename = os.path.join("data", f"nnet-{id}.pt")
         torch.save(newnnet.state_dict(), filename)
         return newnnet, filename
 
@@ -248,5 +249,5 @@ class Coach:
 
 if __name__ == '__main__':
     set_start_method('spawn')
-    coach = Coach("data/info.json")
+    coach = Coach(os.path.join("data", "info.json"))
     coach.run()

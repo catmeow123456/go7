@@ -2,8 +2,10 @@
 不知道为什么会写成这副鬼样子，以后有时间了再改一改，可能可以删掉
 """
 
+import os
 import torch
 import numpy as np
+from nnet import map_location, device
 from game import Board
 from mcts import NNet, MCTS
 TIME_LIMIT = 4
@@ -11,8 +13,8 @@ TIME_LIMIT = 4
 
 class Player:
     def __init__(self):
-        saved_state = torch.load("data/cnn.pt", map_location="cpu")
-        self.nnet = NNet(0, 128, 256)
+        saved_state = torch.load(os.path.join("data", "cnn.pt"), map_location=map_location)
+        self.nnet = NNet(0, 128, 256).to(device)
         self.nnet.load_state_dict(saved_state)
         self.mcts: MCTS = MCTS(self.nnet)
         self.board: Board = Board()

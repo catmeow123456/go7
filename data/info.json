@@ -29,19 +29,24 @@
         "data/nnet-2024-10-19 14:56:17.pt",
         "data/nnet-2024-10-20 07:10:06.pt",
         "data/nnet-2024-10-23 00:53:12.pt",
-        "data/nnet-2024-10-23 07:09:27.pt"
+        "data/nnet-2024-10-23 07:09:27.pt",
+        "data/nnet-2024-10-24 02:56:16.pt",
+        "data/nnet-2024-10-24 21:41:40.pt",
+        "data/nnet-2024-10-29 00:16:44.pt",
+        "data/nnet-2024-10-29 04:18:56.pt",
+        "data/nnet-2024-10-29 09:12:52.pt"
     ],
-    "best": "data/nnet-2024-10-23 07:09:27.pt",
+    "best": "data/nnet-2024-10-29 09:12:52.pt",
     "dataset": [
-        "data/dataset-2024-10-19 03:47:07.pkl",
-        "data/dataset-2024-10-19 09:53:37.pkl",
-        "data/dataset-2024-10-19 14:56:17.pkl",
-        "data/dataset-2024-10-19 20:41:49.pkl",
-        "data/dataset-2024-10-20 02:03:18.pkl",
-        "data/dataset-2024-10-20 07:10:06.pkl",
-        "data/dataset-2024-10-20 12:14:54.pkl",
-        "data/dataset-2024-10-23 00:53:12.pkl",
-        "data/dataset-2024-10-23 07:09:27.pkl",
-        "data/dataset-2024-10-23 13:24:30.pkl"
+        "data/dataset-2024-10-29 09:12:52.pkl",
+        "data/dataset-2024-10-29 09:41:50.pkl",
+        "data/dataset-2024-10-29 10:07:58.pkl",
+        "data/dataset-2024-10-29 10:34:18.pkl",
+        "data/dataset-2024-10-29 11:01:06.pkl",
+        "data/dataset-2024-10-29 11:28:25.pkl",
+        "data/dataset-2024-10-29 11:57:17.pkl",
+        "data/dataset-2024-10-29 12:24:31.pkl",
+        "data/dataset-2024-10-29 12:53:31.pkl",
+        "data/dataset-2024-10-29 13:21:00.pkl"
     ]
 }

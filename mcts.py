@@ -1,4 +1,4 @@
-import time
+import copy
 import math
 import numpy as np
 from typing import Dict, Tuple
@@ -21,7 +21,7 @@ class MCTS:
 
     def __init__(self, nnet: NNet = None, args: Args = None):
         self.nnet = nnet
-        self.args = args
+        self.args = copy.deepcopy(args)
         self.pipe = None
         self.valids = {}
 
@@ -68,16 +68,14 @@ class MCTS:
             probs = Ns / Ns_sum
         return probs
 
-    def _search(self, game: Board, depth=0) -> float:
-        if depth>200:
-            print(f"depth = {depth}\n{game}")
+    def _search(self, game: Board) -> float:
         if hasattr(game, 'winner'):
             v = float(game.winner * game.color)
             return -v
         if game_end(game):
             game.place(-1, -1)
             # 已经到终局，选择 pass
-            return -self._search(game, depth+1)
+            return -self._search(game)
         # 其他情况不选择 pass
         s = game.hashed_state
         valids = self.valids.get(s, None)
@@ -85,7 +83,7 @@ class MCTS:
             valids = game.legal_moves_input()
         if valids.sum() == 1:
             game.place(-1, -1)
-            return -self._search(game, depth+1)
+            return -self._search(game)
         # 叶子结点 （ 如果没有访问过，更新 Ps, Ns ）扩展
         if s not in self.Ps:
             if self.nnet is not None:
@@ -131,7 +129,7 @@ class MCTS:
         a = best_act
 
         game.place(*game.int2move(a))
-        v = self._search(game, depth+1)
+        v = self._search(game)
 
         qsa = self.Qsa.get((s, a), None)
         if qsa is not None:

@@ -1,5 +1,5 @@
 class Referee:
-    def __init__(self, WIDTH=7, komi=2):
+    def __init__(self, WIDTH=7, komi=4.5):
         self.width = WIDTH
         self.komi = komi
         self.current_player = 1  # 1 for black, -1 for white

@@ -184,7 +184,7 @@ def game_end(game: Board):
     对残局分析气眼和联通分支的大小，判断是否 PASS
     """
     if game.referee.previous_pass:
-        count = game.board.sum()
+        count = game.board.sum() - game.referee.komi
         v = (1 if count > 0 else -1 if count < 0 else 0) * game.color
         if v > 0:
             # 对手选择 pass，而我方优，选择 pass。

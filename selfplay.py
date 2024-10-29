@@ -118,7 +118,7 @@ class Coach:
         if nnet is None:
             nnet = NNet(0.5, 128, 256).to(device)
             nnet.apply(weights_init)
-        batch_size = 64000
+        batch_size = 24000
         epoch = math.ceil(len(dataset) / batch_size)
         for i in range(epoch):
             print(f"Epoch {i}, batch size {batch_size}", flush=True)
@@ -154,7 +154,7 @@ class Coach:
             nnet = load_model(self.info["best"])
 
         trainExamples = deque([], maxlen=self.args.maxlenOfQueue)
-        num_workers = 8
+        num_workers = 14
         for _ in tqdm(range(self.args.numEps // num_workers)):
             mcts = MCTS(nnet, self.args)
             pipe_list = [Pipe() for _ in range(num_workers)]
@@ -172,6 +172,12 @@ class Coach:
                 process.join()
             process_aux.join()
             print('All process joined')
+            for pipe in pipe_list:
+                pipe[0].close()
+                pipe[1].close()
+            for process in process_list:
+                process.terminate()
+            process_aux.terminate()
             for id in range(num_workers):
                 with open(f"tmp/{id}.pkl", "rb") as f:
                     data = pickle.load(f)
@@ -203,39 +209,41 @@ class Coach:
     def compete(self, nnet1: NNet, nnet2: NNet) -> tuple:
         win, lose = 0, 0
         mcts1 = MCTS(nnet1, self.args)
-        mcts2 = MCTS(nnet2, self.args)    
+        mcts2 = MCTS(nnet2, self.args)
+        mcts1.args.numMCTSSims = 10
+        mcts2.args.numMCTSSims = 10  
+        flag = 1
         for _ in range(self.args.arenaCompare):
-            flag = 1
-            if random.random() < 0.5:
+            if flag == 1:
                 role = {1: mcts1, -1: mcts2}
             else:
                 role = {1: mcts2, -1: mcts1}
-                flag = -1
             board = Board()
             while not board.haswinner:
-                prob = role[board.color].getActionProb(board, temp=0.3)
+                prob = role[board.color].getActionProb(board, temp=0.2)
                 action = np.random.choice(range(ACTION_SIZE), p=prob)
                 board.place(*board.int2move(action))
             if board.winner == flag:
                 win += 1
             else:
                 lose += 1
-            print(f"Win = {win}, Lose = {lose}")
+            print(f"Win = {win}, Lose = {lose}", flush=True)
+            flag = -flag
         return win, lose
 
     def run(self):
         for _ in range(self.args.numIters):
             newnnet, filename = self.learn()
             win, lose = self.compete(newnnet, load_model(self.info["best"]))
-            print(f"Win = {win}, Lose = {lose}")
+            print(f"Win = {win}, Lose = {lose}", flush=True)
             if win / (win + lose) > self.args.updateThreshold:
-                print(f"Accept new model {filename}")
+                print(f"Accept new model {filename}", flush=True)
                 self.info["best"] = filename
                 self.info["models"].append(filename)
                 with open(self.path, "w") as f:
                     json.dump(self.info, f)
             else:
-                print(f"Reject new model {filename}")
+                print(f"Reject new model {filename}", flush=True)
 
 
 if __name__ == '__main__':

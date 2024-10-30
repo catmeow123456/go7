@@ -119,7 +119,7 @@ class Coach:
         if nnet is None:
             nnet = NNet(0.5, 128, 256).to(device)
             nnet.apply(weights_init)
-        batch_size = 24000
+        batch_size = 48000
         epoch = math.ceil(len(dataset) / batch_size)
         for i in range(epoch):
             print(f"Epoch {i}, batch size {batch_size}", flush=True)
@@ -147,6 +147,7 @@ class Coach:
                 optimizer.step()
                 print(f'Loss1: {loss1.item()}, Loss2: {loss2.item()}', flush=True)
 
+        torch.cuda.empty_cache()
         return nnet
 
     def learn(self) -> NNet:

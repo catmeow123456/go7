@@ -74,7 +74,8 @@ def selfplayEpsisode(id, mcts: MCTS, debug: bool = False, pipe = None):
         board.place(*board.int2move(action))
         if debug:
             print(board, flush=True)
-    mcts.pipe.send(None)
+    if mcts.pipe is not None:
+        mcts.pipe.send(None)
     if debug:
         print("Winner = ", "O.X"[board.winner + 1], flush=True)
     with open(os.path.join("tmp", f"{id}.pkl"), "wb") as f:
@@ -212,8 +213,6 @@ class Coach:
         win, lose = 0, 0
         mcts1 = MCTS(nnet1, self.args)
         mcts2 = MCTS(nnet2, self.args)
-        mcts1.args.numMCTSSims = 10
-        mcts2.args.numMCTSSims = 10  
         flag = 1
         for _ in range(self.args.arenaCompare):
             if flag == 1:
@@ -222,8 +221,7 @@ class Coach:
                 role = {1: mcts2, -1: mcts1}
             board = Board()
             while not board.haswinner:
-                prob = role[board.color].getActionProb(board, temp=0.2)
-                action = np.random.choice(range(ACTION_SIZE), p=prob)
+                action = role[board.color].nnet_move(board)
                 board.place(*board.int2move(action))
             if board.winner == flag:
                 win += 1

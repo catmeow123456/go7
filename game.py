@@ -200,8 +200,6 @@ def game_end(game: Board):
                         return False
 
     def liberty(x, y, c, visit, id0, depth=0):
-        if depth>100:
-            print(x, y, depth)
         if x < 0 or x >= n or y < 0 or y >= n:
             return 0
         if visit[x][y] == 1 or visit[x][y] == id0:

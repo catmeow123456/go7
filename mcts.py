@@ -35,6 +35,18 @@ class MCTS:
         s = game.hashed_state
         return self.Qsa.get((s, action), None)
 
+    def nnet_move(self, game: Board) -> int:
+        if game_end(game):
+            return PASS
+        valids = game.legal_moves_input()
+        if valids.sum() == 1:
+            return PASS
+        prob, v = self.nnet.predict(game.bundled_input(valids))
+        prob = prob * valids
+        prob /= np.sum(prob)
+        a = np.random.choice(range(ACTION_SIZE), p=prob)
+        return a
+
     def best_move(self, game: Board, timeout=9) -> int:
         if game_end(game):
             return PASS

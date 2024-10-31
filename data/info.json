@@ -50,19 +50,28 @@
         "data/nnet-2024-10-30-09-44-43.pt",
         "data/nnet-2024-10-30-19-17-35.pt",
         "data/nnet-2024-10-30-21-12-35.pt",
-        "data/nnet-2024-10-30-22-14-10.pt"
+        "data/nnet-2024-10-30-22-14-10.pt",
+        "data/nnet-2024-10-31-00-06-16.pt",
+        "data/nnet-2024-10-31-00-36-52.pt",
+        "data/nnet-2024-10-31-01-05-51.pt",
+        "data/nnet-2024-10-31-05-36-17.pt",
+        "data/nnet-2024-10-31-08-36-44.pt",
+        "data/nnet-2024-10-31-09-35-21.pt",
+        "data/nnet-2024-10-31-11-35-56.pt",
+        "data/nnet-2024-10-31-15-10-32.pt",
+        "data/nnet-2024-10-31-18-12-34.pt"
     ],
-    "best": "data/nnet-2024-10-30-22-14-10.pt",
+    "best": "data/nnet-2024-10-31-18-12-34.pt",
     "dataset": [
-        "data/dataset-2024-10-30-10-41-57.pkl",
-        "data/dataset-2024-10-30-14-31-03.pkl",
-        "data/dataset-2024-10-30-15-30-10.pkl",
-        "data/dataset-2024-10-30-16-27-10.pkl",
-        "data/dataset-2024-10-30-17-23-11.pkl",
-        "data/dataset-2024-10-30-18-16-53.pkl",
-        "data/dataset-2024-10-30-19-17-35.pkl",
-        "data/dataset-2024-10-30-20-15-41.pkl",
-        "data/dataset-2024-10-30-21-12-35.pkl",
-        "data/dataset-2024-10-30-22-14-10.pkl"
+        "data/dataset-2024-10-31-13-40-00.pkl",
+        "data/dataset-2024-10-31-14-10-05.pkl",
+        "data/dataset-2024-10-31-14-39-22.pkl",
+        "data/dataset-2024-10-31-15-10-32.pkl",
+        "data/dataset-2024-10-31-15-39-34.pkl",
+        "data/dataset-2024-10-31-16-09-20.pkl",
+        "data/dataset-2024-10-31-16-41-06.pkl",
+        "data/dataset-2024-10-31-17-10-04.pkl",
+        "data/dataset-2024-10-31-17-41-13.pkl",
+        "data/dataset-2024-10-31-18-12-34.pkl"
     ]
 }

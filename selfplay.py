@@ -194,7 +194,7 @@ class Coach:
         with open(filename, "wb") as f:
             pickle.dump(trainExamples, f)
         self.info["dataset"].append(filename)
-        if len(self.info["dataset"]) > self.args.numItersForTrainExamplesHistory:
+        while len(self.info["dataset"]) > self.args.numItersForTrainExamplesHistory:
             self.info["dataset"].pop(0)
         with open(self.path, "w") as f:
             json.dump(self.info, f)

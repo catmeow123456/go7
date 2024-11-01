@@ -2,5 +2,5 @@ __pycache__
 *.pkl
 log.txt
 *.pt
-!data/nnet-2024-10-31-18-12-34.pt
+!data/nnet-2024-11-01-15-47-11.pt
 !data/cnn.pt

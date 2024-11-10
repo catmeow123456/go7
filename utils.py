@@ -5,7 +5,7 @@ class Args:
     maxlenOfQueue: 100000  # maxlenOfQueue 个样本为一组
     numItersForTrainExamplesHistory: 12  # 保留最近 numItersForTrainExamplesHistory 组样本，将他们混合后 shuffle 出训练集
     arenaCompare: 100  # 与历史模型对弈 arenaCompare 次，用于评估新模型的优劣
-    updateThreshold: 0.52  # 新模型胜率超过 updateThreshold 时，接受新模型
+    updateThreshold: 0.50  # 新模型胜率超过 updateThreshold 时，接受新模型
     def __init__(self) -> None:
         self.numIters = 1000
         self.numEps = 100
@@ -13,7 +13,7 @@ class Args:
         self.maxlenOfQueue = 100000
         self.numItersForTrainExamplesHistory = 12
         self.arenaCompare = 100
-        self.updateThreshold = 0.52
+        self.updateThreshold = 0.50
 
 class AverageMeter(object):
     def __init__(self):

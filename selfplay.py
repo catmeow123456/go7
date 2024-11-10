@@ -53,6 +53,9 @@ def selfplayEpsisode(id, mcts: MCTS, debug: bool = False, pipe = None):
         if v is not None and v < -0.9:
             board.winner = -c
             break
+        # if v is not None and v > -0.005 and v < 0.005:
+        #     board.winner = 0
+        #     break
         if debug:
             print(f"Color: {'O.X'[c+1]}, Action: {board.int2move(action)}, Value: {v}", flush=True)
 
@@ -134,7 +137,7 @@ class Coach:
             data_output2 = data_output2.view(-1, 1)
 
             # train nnet with data
-            optimizer = optim.Adam(nnet.parameters(), lr=0.001, weight_decay=1e-4)
+            optimizer = optim.Adam(nnet.parameters(), lr=0.0003, weight_decay=1e-4)
             for _ in range(10):
                 output1, output2 = nnet(data_input)
                 # 计算交叉熵
@@ -225,7 +228,7 @@ class Coach:
                 board.place(*board.int2move(action))
             if board.winner == flag:
                 win += 1
-            else:
+            elif board.winner == -flag:
                 lose += 1
             print(f"Win = {win}, Lose = {lose}", flush=True)
             flag = -flag
@@ -236,7 +239,7 @@ class Coach:
             newnnet, filename = self.learn()
             win, lose = self.compete(newnnet, load_model(self.info["best"]))
             print(f"Win = {win}, Lose = {lose}", flush=True)
-            if win / (win + lose) > self.args.updateThreshold:
+            if win / (win + lose) >= self.args.updateThreshold:
                 print(f"Accept new model {filename}", flush=True)
                 self.info["best"] = filename
                 self.info["models"].append(filename)
